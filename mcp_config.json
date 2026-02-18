@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "myt-rpa": {
+      "command": "python3",
+      "args": [
+        "/home/suigv/文档/MYT/demo_py_x64/mcp_server.py"
+      ],
+      "env": {},
+      "description": "MYT RPA 自动化控制"
+    }
+  }
+}

@@ -1,0 +1,60 @@
+# common/logger.py
+import logging
+import sys
+
+class GuiLogHandler(logging.Handler):
+    """自定义 Handler，将日志发送到 GUI 回调"""
+    def __init__(self, callback=None):
+        super().__init__()
+        self.callback = callback
+
+    def emit(self, record):
+        if self.callback:
+            msg = self.format(record)
+            self.callback(msg)
+
+class Logger:
+    _instance = None
+    _gui_callback = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(Logger, cls).__new__(cls)
+            cls._instance._init()
+        return cls._instance
+
+    def _init(self):
+        self.logger = logging.getLogger("MytLogger")
+        self.logger.setLevel(logging.INFO)
+        
+        # 控制台输出
+        console = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        console.setFormatter(formatter)
+        self.logger.addHandler(console)
+
+    def set_gui_callback(self, callback):
+        """设置 GUI 日志回调函数"""
+        self._gui_callback = callback
+        # 移除旧的 GUI handler (如果有)
+        for h in self.logger.handlers:
+            if isinstance(h, GuiLogHandler):
+                self.logger.removeHandler(h)
+        
+        # 添加新的
+        gui_handler = GuiLogHandler(callback)
+        gui_handler.setFormatter(logging.Formatter('[%(asctime)s] %(message)s', datefmt='%H:%M:%S'))
+        self.logger.addHandler(gui_handler)
+
+    def log(self, device_index, message, level="info"):
+        full_msg = f"[Dev {device_index}] {message}"
+        if level == "info":
+            self.logger.info(full_msg)
+        elif level == "error":
+            self.logger.error(full_msg)
+        elif level == "warning":
+            self.logger.warning(full_msg)
+
+# 全局单例
+log_manager = Logger()
+logger = log_manager.logger # 兼容旧代码直接引用 logger

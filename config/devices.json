@@ -1,0 +1,12 @@
+{
+  "host_ip": "192.168.1.215",
+  "total_devices": 10,
+  "default_ai": "volc",
+  "stop_hour": 18,
+  "cycle_interval": 15,
+  "retry_delay": 3,
+  "ai_types": {
+    "volc": "交友接口",
+    "part_time": "兼职接口"
+  }
+}
