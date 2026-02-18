@@ -1,6 +1,18 @@
 # common/ai_providers.py
+"""
+AI 服务提供者模块
+
+请在环境变量或 config.json 中配置你的 API 密钥:
+- VOLC_API_KEY: 火山引擎 API Key
+- PART_TIME_API_KEY: 兼职接口 API Key
+"""
+import os
 import requests
 import random
+
+# 从环境变量获取 API 密钥
+VOLC_API_KEY = os.environ.get("VOLC_API_KEY", "")
+PART_TIME_API_KEY = os.environ.get("PART_TIME_API_KEY", "")
 
 # 尝试导入 urllib3 禁用警告
 try:
@@ -8,6 +20,7 @@ try:
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 except ImportError:
     urllib3 = None
+
 
 class BaseAIProvider:
     """AI 服务提供者的基类"""
@@ -22,23 +35,33 @@ class BaseAIProvider:
         """
         raise NotImplementedError("子类必须实现 get_reply 方法")
 
+
 class VolcEngineAI(BaseAIProvider):
     """火山引擎豆包大模型 (交友接口)"""
+    def __init__(self, log_func=print):
+        super().__init__(log_func)
+        self.api_key = VOLC_API_KEY or os.environ.get("VOLC_API_KEY", "")
+        self.url = "https://ark.cn-beijing.volces.com/api/v3/bots/chat/completions"
+        self.model = "bot-20251130222029-mxr2b"  # TODO: 替换为你的 model ID
+
     def get_reply(self, text):
-        url = "https://ark.cn-beijing.volces.com/api/v3/bots/chat/completions"
+        if not self.api_key:
+            self.log("❌ [交友AI] 未配置 API_KEY")
+            return None
+
         headers = {
             "Content-Type": "application/json",
-            "Authorization": "Bearer 6dfbadd6-a61f-4a35-801f-b67a76ff3d2b"
+            f"Authorization": f"Bearer {self.api_key}"
         }
         payload = {
-            "model": "bot-20251130222029-mxr2b",
+            "model": self.model,
             "stream": False,
             "messages": [{"role": "user", "content": text}]
         }
 
         try:
             self.log(f"📡 [交友AI] 请求: {text[:15]}...")
-            response = requests.post(url, headers=headers, json=payload, timeout=30, verify=False)
+            response = requests.post(self.url, headers=headers, json=payload, timeout=30, verify=False)
 
             if response.status_code == 200:
                 result = response.json()
@@ -52,22 +75,30 @@ class VolcEngineAI(BaseAIProvider):
             self.log(f"💥 [交友AI] 异常: {e}")
             return None
 
+
 class PartTimeAI(BaseAIProvider):
     """火山引擎 (兼职接口)"""
+    def __init__(self, log_func=print):
+        super().__init__(log_func)
+        self.api_key = PART_TIME_API_KEY or os.environ.get("PART_TIME_API_KEY", "")
+        self.url = "https://ark.cn-beijing.volces.com/api/v3/bots/chat/completions"
+        self.model = "bot-20260205014728-mphq8"  # TODO: 替换为你的 model ID
+
     def get_reply(self, text):
-        url = "https://ark.cn-beijing.volces.com/api/v3/bots/chat/completions"
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer 633693cf-5cc7-4aef-ba33-18865a1bd398"
-        }
-        
-        # 随机选择角色名
+        if not self.api_key:
+            self.log("❌ [兼职AI] 未配置 API_KEY")
+            return None
+
         character = random.choice(["hunter", "master"])
         self.log(f"🎭 [兼职AI] 使用角色: {character}")
-        
+
+        headers = {
+            "Content-Type": "application/json",
+            f"Authorization": f"Bearer {self.api_key}"
+        }
         payload = {
-            "model": "bot-20260205014728-mphq8",
-            "stream": False, # 强制使用非流式，简化解析
+            "model": self.model,
+            "stream": False,
             "messages": [{"role": "user", "content": text}],
             "metadata": {
                 "target_character_name": character
@@ -76,7 +107,7 @@ class PartTimeAI(BaseAIProvider):
 
         try:
             self.log(f"📡 [兼职AI] 请求: {text[:15]}...")
-            response = requests.post(url, headers=headers, json=payload, timeout=30, verify=False)
+            response = requests.post(self.url, headers=headers, json=payload, timeout=30, verify=False)
 
             if response.status_code == 200:
                 result = response.json()
@@ -89,6 +120,7 @@ class PartTimeAI(BaseAIProvider):
         except Exception as e:
             self.log(f"💥 [兼职AI] 异常: {e}")
             return None
+
 
 def get_ai_provider(provider_name, log_func=print):
     """

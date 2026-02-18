@@ -1,12 +1,16 @@
 __pycache__/
 *.pyc
 *.pyo
+*.log
 .idea/
 .vscode/
 *.egg-info/
 dist/
 build/
 .env
-*.log
 node_modules/
 .DS_Store
+*.7z
+temp/
+log/
+tasks/log/
