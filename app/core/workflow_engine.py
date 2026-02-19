@@ -314,6 +314,17 @@ class WorkflowEngine:
         stop_event = self._stop_events.get(device_index)
         if stop_event:
             stop_event.set()
+            
+            # 额外：尝试强制停止设备上的X App
+            try:
+                from common.bot_agent import BotAgent
+                bot = BotAgent(device_index, self.host_ip)
+                if bot.connect():
+                    bot.force_stop_app()
+                    bot.quit()
+            except:
+                pass
+            
             return True
         return False
 
