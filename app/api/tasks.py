@@ -2,12 +2,14 @@
 任务 API
 """
 from fastapi import APIRouter, HTTPException
-from typing import List
+from typing import List, Optional
 
 from app.models.task import TaskRequest, TaskResponse, TaskDetailResponse, TaskType, TaskStatus
 from app.core.workflow_engine import WorkflowEngine
 from app.core.device_manager import parse_device_range, parse_ai_type
 from app.core.task_manager import TaskManager
+from app.core.task_log_store import get_task_logs
+from common.runtime_state import reset_runtime_state
 
 router = APIRouter()
 workflow_engine = WorkflowEngine()
@@ -98,6 +100,29 @@ def list_tasks(limit: int = 50):
         )
         for t in tasks
     ]
+
+
+@router.get("/logs")
+def list_task_logs(
+    device_index: Optional[int] = None,
+    task_id: Optional[str] = None,
+    since_id: int = 0,
+    limit: int = 200,
+):
+    result = get_task_logs(
+        device_index=device_index,
+        task_id=task_id,
+        since_id=since_id,
+        limit=limit,
+    )
+    return {"status": "ok", **result}
+
+
+@router.post("/initialize")
+def initialize_runtime_state():
+    workflow_engine.stop_all()
+    reset_result = reset_runtime_state()
+    return {"status": "ok", "message": "运行状态已初始化", **reset_result}
 
 
 @router.get("/{task_id}", response_model=TaskDetailResponse)

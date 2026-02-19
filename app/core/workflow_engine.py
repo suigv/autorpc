@@ -9,6 +9,7 @@ from typing import Dict, Callable
 from app.core.device_manager import DeviceManager, check_stop_condition
 from app.core.config_loader import get_host_ip, get_stop_hour, get_cycle_interval
 from app.core.port_calc import calculate_ports
+from app.core.task_log_store import append_task_log
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,7 @@ class WorkflowEngine:
     def log(self, device_index: int, msg: str):
         prefix = f"[Dev {device_index}]" if device_index else "[Workflow]"
         logger.info(f"{prefix} {msg}")
+        append_task_log(msg, device_index=device_index, source="workflow")
 
     def check_device_online(self, device_index: int) -> bool:
         try:
@@ -331,20 +333,10 @@ class WorkflowEngine:
             self._stop_events.pop(device_index, None)
 
     def stop_device(self, device_index: int):
-        """停止指定设备的任务"""
+        """停止指定设备的任务（快速返回，仅发送停止信号）"""
         stop_event = get_stop_event(device_index)
         stop_event.set()
-        
-        # 额外：尝试强制停止设备上的X App
-        try:
-            from common.bot_agent import BotAgent
-            bot = BotAgent(device_index, self.host_ip)
-            if bot.connect():
-                bot.force_stop_app()
-                bot.quit()
-        except:
-            pass
-        
+        append_task_log("收到停止信号", device_index=device_index, level="warning", source="workflow")
         return True
 
     def stop_all(self):

@@ -3,7 +3,48 @@ import logging
 import sys
 import os
 import asyncio
+import re
 from concurrent.futures import ThreadPoolExecutor
+
+
+class TaskLogForwardHandler(logging.Handler):
+    """Forward runtime logs to task log store and websocket."""
+
+    DEVICE_RE = re.compile(r"^\[Dev\s+(\d+)\]\s*(.*)$")
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            level = record.levelname.lower()
+
+            device_index = None
+            message = msg
+            match = self.DEVICE_RE.match(msg)
+            if match:
+                device_index = int(match.group(1))
+                message = match.group(2)
+
+            try:
+                from app.core.task_log_store import append_task_log
+                append_task_log(
+                    message,
+                    device_index=device_index,
+                    level=level,
+                    source="runtime",
+                )
+            except Exception:
+                pass
+
+            inst = Logger._instance
+            if inst and inst._ws_broadcast:
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        asyncio.ensure_future(inst._ws_broadcast(msg))
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
 class GuiLogHandler(logging.Handler):
     """自定义 Handler，将日志发送到 GUI 回调"""
@@ -47,6 +88,10 @@ class Logger:
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%H:%M:%S')
         console.setFormatter(formatter)
         self.logger.addHandler(console)
+
+        forward = TaskLogForwardHandler()
+        forward.setFormatter(logging.Formatter('%(message)s'))
+        self.logger.addHandler(forward)
         
         Logger._initialized = True
 

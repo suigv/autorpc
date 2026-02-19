@@ -96,9 +96,13 @@ def ensure_blogger_ready(device_info, ai_type):
             new_bloggers = scrape_bloggers(bot, keyword)
             count = BloggerManager.add_bloggers(ai_type, new_bloggers)
             bot.log(f"✅ 采集完成，入库 {count} 个")
-            
-            # 修复：传入 ai_type
-            BloggerManager.update_scrape_time(idx, ai_type)
+
+            # 仅在实际采集到博主时记录采集时间。
+            # 若 count == 0，不写入冷却状态，保证后续仍优先触发采集。
+            if count > 0:
+                BloggerManager.update_scrape_time(idx, ai_type)
+            else:
+                bot.log("⚠️ 本次采集为0，未写入冷却状态，后续将继续优先采集")
 
             bot.quit()
             

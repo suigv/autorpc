@@ -19,6 +19,7 @@ from tasks.task_nurture import run_nurture_task
 from tasks.task_home_interaction import run_home_interaction_task
 from tasks.task_quote_intercept import run_quote_intercept_task
 from tasks.task_reboot_device import reboot_device_via_api
+from common.runtime_state import reset_runtime_state
 
 # --- 🎨 暗黑风格配置 ---
 THEME = {
@@ -358,18 +359,20 @@ class MytControllerApp:
                   font=("Arial", 11, "bold"), relief="flat", padx=10,
                   command=self.stop_all).pack(side="left", padx=5)
 
+        tk.Button(btn_frame, text="♻ 初始化", bg="#D18A00", fg="white",
+                  font=("Arial", 11, "bold"), relief="flat", padx=10,
+                  command=self.initialize_runtime).pack(side="left", padx=5)
+
     def on_ai_change(self, _):
         selected = self.combo_ai.get()
         is_part_time = (selected == "兼职接口")
         ai_type = "part_time" if is_part_time else "volc"
         cfg.update_runtime("ai_type", ai_type)
-        
+
+        self.chk_nurture_g.config(state="normal")
         if is_part_time:
-            self.chk_nurture_g.config(state="normal")
             self.g_vars["nurture"].set(True)
-        else:
-            self.chk_nurture_g.config(state="normal")
-            
+
         for dev in self.devices:
             dev.chk_nurture.config(state="normal")
 
@@ -400,11 +403,32 @@ class MytControllerApp:
                                      font=("Consolas", 10), state="disabled", height=20)
         self.log_text.pack(fill="both", expand=True)
 
+    def _append_log_ui(self, msg):
+        try:
+            self.log_text.config(state="normal")
+            self.log_text.insert("end", msg + "\n")
+            self.log_text.see("end")
+            self.log_text.config(state="disabled")
+        except tk.TclError:
+            pass
+
     def append_log(self, msg):
-        self.log_text.config(state="normal")
-        self.log_text.insert("end", msg + "\n")
-        self.log_text.see("end")
-        self.log_text.config(state="disabled")
+        self.root.after(0, self._append_log_ui, msg)
+
+    def _get_delay_value(self):
+        raw = str(self.entry_delay.get()).strip()
+        if not raw:
+            return 0
+        try:
+            value = int(raw)
+            if value < 0:
+                raise ValueError
+            return value
+        except ValueError:
+            log_manager.log(0, f"⚠️ Delay 配置无效: {raw}，已自动使用 0", "warning")
+            self.entry_delay.delete(0, "end")
+            self.entry_delay.insert(0, "0")
+            return 0
 
     def _schedule_monitor(self):
         if self.g_vars["schedule"].get():
@@ -424,7 +448,7 @@ class MytControllerApp:
 
     def start_all(self):
         cfg.update_runtime("ip", self.entry_ip.get().strip())
-        cfg.update_runtime("delay", int(self.entry_delay.get().strip() or 0))
+        cfg.update_runtime("delay", self._get_delay_value())
         
         opts = {k: v.get() for k, v in self.g_vars.items() if k != "schedule"}
         
@@ -444,6 +468,26 @@ class MytControllerApp:
         for device in self.devices:
             if device.is_running:
                 device.stop_task()
+
+    def initialize_runtime(self):
+        if not messagebox.askyesno("确认初始化", "将停止任务并删除任务执行产生的固化文件，是否继续？"):
+            return
+
+        self.stop_all()
+        result = reset_runtime_state()
+        removed_raw = result.get("removed_count", 0)
+        failed_raw = result.get("failed_count", 0)
+        removed_count = removed_raw if isinstance(removed_raw, int) else 0
+        failed_count = failed_raw if isinstance(failed_raw, int) else 0
+        log_manager.log(0, f"♻ 初始化完成: 删除 {removed_count} 个文件，失败 {failed_count} 个")
+
+        if failed_count > 0:
+            messagebox.showwarning(
+                "初始化完成",
+                f"删除 {removed_count} 个文件，失败 {failed_count} 个。\n请查看日志。"
+            )
+        else:
+            messagebox.showinfo("初始化完成", f"已删除 {removed_count} 个固化文件。")
 
 if __name__ == "__main__":
     root = tk.Tk()

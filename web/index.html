@@ -85,6 +85,28 @@
             align-items: center;
             gap: 8px;
         }
+        .mode-toggle {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .mode-toggle label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #d3d3d3;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            cursor: pointer;
+        }
+        .mode-toggle input[type="checkbox"] {
+            accent-color: #ff6b6b;
+            cursor: pointer;
+        }
         
         /* 设备选择 - 复选框样式 */
         .device-grid {
@@ -230,6 +252,99 @@
             font-size: 11px;
         }
         .log-msg { color: #ccc; }
+        .log-toolbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: rgba(0,0,0,0.55);
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .log-toolbar select {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #e0e0e0;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+        .log-toolbar label {
+            font-size: 12px;
+            color: #b5b5b5;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .log-count {
+            margin-left: auto;
+            color: #9ec4ff;
+            font-size: 12px;
+        }
+        .log-group {
+            margin-bottom: 14px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.02);
+        }
+        .log-group-title {
+            padding: 8px 10px;
+            font-size: 12px;
+            color: #9ec4ff;
+            background: rgba(158,196,255,0.08);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .log-level {
+            margin-left: 8px;
+            margin-right: 8px;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .log-level.info {
+            color: #7ed6df;
+            background: rgba(126,214,223,0.15);
+        }
+        .log-level.warning {
+            color: #feca57;
+            background: rgba(254,202,87,0.15);
+        }
+        .log-level.error {
+            color: #ff6b6b;
+            background: rgba(255,107,107,0.15);
+        }
+        .log-task {
+            color: #9ec4ff;
+            margin-right: 8px;
+            font-size: 11px;
+            background: rgba(158,196,255,0.12);
+            border-radius: 4px;
+            padding: 2px 6px;
+        }
+        .log-raw {
+            margin-top: 6px;
+        }
+        .log-raw summary {
+            cursor: pointer;
+            color: #8fb3ff;
+            font-size: 12px;
+        }
+        .log-raw pre {
+            margin-top: 6px;
+            padding: 8px;
+            border-radius: 6px;
+            background: rgba(0,0,0,0.35);
+            color: #b7c7ff;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 12px;
+        }
         
         /* 命令区 */
         .command {
@@ -282,6 +397,14 @@
         .btn-secondary:hover {
             background: rgba(255,255,255,0.15);
         }
+        .btn-warning {
+            background: linear-gradient(135deg, #ffa502, #ff7f50);
+            color: #1a1a2e;
+        }
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255,165,2,0.35);
+        }
         .btn-danger {
             background: linear-gradient(135deg, #ff4757, #ff6b81);
             color: #fff;
@@ -324,6 +447,26 @@
                     <label class="device-label" :for="'dev'+i">设备 {{ i }}</label>
                 </div>
             </div>
+
+            <div class="section-title">🤖 接口类型</div>
+            <div class="mode-toggle">
+                <label>
+                    <input
+                        type="checkbox"
+                        :checked="selectedApiType === 'volc'"
+                        @change="onApiTypeToggle('volc', $event)"
+                    >
+                    交友接口
+                </label>
+                <label>
+                    <input
+                        type="checkbox"
+                        :checked="selectedApiType === 'part_time'"
+                        @change="onApiTypeToggle('part_time', $event)"
+                    >
+                    兼职接口
+                </label>
+            </div>
             
             <div class="section-title">📁 数据配置</div>
             <div class="tabs">
@@ -350,13 +493,58 @@
         </div>
         
         <div class="logs" ref="logContainer">
-            <div class="log-item" v-for="(log, index) in logs" :key="index">
+            <div class="log-toolbar">
+                <select v-model="logDeviceFilter">
+                    <option value="all">全部设备</option>
+                    <option v-for="i in 10" :key="`filter-dev-${i}`" :value="String(i)">设备 {{ i }}</option>
+                </select>
+                <select v-model="logLevelFilter">
+                    <option value="all">全部级别</option>
+                    <option value="info">INFO</option>
+                    <option value="warning">WARNING</option>
+                    <option value="error">ERROR</option>
+                </select>
+                <label>
+                    <input type="checkbox" v-model="onlyCurrentSelection">
+                    仅看已选设备
+                </label>
+                <label>
+                    <input type="checkbox" v-model="groupByTask">
+                    按任务分组
+                </label>
+                <span class="log-count">{{ filteredLogs.length }}/{{ logs.length }}</span>
+            </div>
+
+            <template v-if="groupByTask">
+                <div class="log-group" v-for="group in groupedLogs" :key="group.key">
+                    <div class="log-group-title">{{ group.title }} ({{ group.items.length }})</div>
+                    <div class="log-item" v-for="(log, index) in group.items" :key="`${group.key}-${index}`">
+                        <span class="log-time">{{ log.time }}</span>
+                        <span class="log-dev" v-if="log.dev">D{{ log.dev }}</span>
+                        <span class="log-level" :class="log.level || 'info'">{{ (log.level || 'info').toUpperCase() }}</span>
+                        <span class="log-task" v-if="log.taskId">{{ log.taskId }}</span>
+                        <span class="log-msg">{{ log.msg }}</span>
+                        <details class="log-raw" v-if="log.raw">
+                            <summary>响应详情</summary>
+                            <pre>{{ log.raw }}</pre>
+                        </details>
+                    </div>
+                </div>
+            </template>
+
+            <div v-else class="log-item" v-for="(log, index) in filteredLogs" :key="index">
                 <span class="log-time">{{ log.time }}</span>
                 <span class="log-dev" v-if="log.dev">D{{ log.dev }}</span>
+                <span class="log-level" :class="log.level || 'info'">{{ (log.level || 'info').toUpperCase() }}</span>
+                <span class="log-task" v-if="log.taskId">{{ log.taskId }}</span>
                 <span class="log-msg">{{ log.msg }}</span>
+                <details class="log-raw" v-if="log.raw">
+                    <summary>响应详情</summary>
+                    <pre>{{ log.raw }}</pre>
+                </details>
             </div>
-            <div v-if="logs.length === 0" style="text-align: center; color: #666; padding: 40px;">
-                📭 暂无日志，等待任务执行...
+            <div v-if="filteredLogs.length === 0" style="text-align: center; color: #666; padding: 40px;">
+                📭 当前筛选条件下暂无日志
             </div>
         </div>
         
@@ -364,15 +552,16 @@
             <input v-model="command" 
                    placeholder="输入指令: 养号、全套、重置、关注、私信..." 
                    @keyup.enter="executeCommand"
-                   :disabled="isRunning">
-            <button class="btn btn-primary" @click="executeCommand" :disabled="!command.trim() || isRunning">▶ 执行</button>
-            <button class="btn btn-danger" @click="stopTask" :disabled="!isRunning">⏹ 停止</button>
+                   >
+            <button class="btn btn-primary" @click="executeCommand" :disabled="!command.trim()">▶ 执行</button>
+            <button class="btn btn-danger" @click="stopTask" :disabled="!hasStopTargets">⏹ 停止</button>
+            <button class="btn btn-warning" @click="initializeState">♻ 初始化</button>
             <button class="btn btn-secondary" @click="clearLogs">🗑️ 清空</button>
         </div>
     </div>
 
     <script>
-        const { createApp, ref, onMounted, nextTick } = Vue;
+        const { createApp, ref, computed, onMounted, onUnmounted, nextTick } = Vue;
 
         createApp({
             setup() {
@@ -386,27 +575,169 @@
                 const websiteData = ref('');
                 const logContainer = ref(null);
                 const isRunning = ref(false);
-                let ws = null;
+                const selectedApiType = ref('volc');
+                const logDeviceFilter = ref('all');
+                const logLevelFilter = ref('all');
+                const onlyCurrentSelection = ref(true);
+                const groupByTask = ref(true);
 
-                const addLog = (msg) => {
-                    const now = new Date();
-                    const time = now.toLocaleTimeString('zh-CN');
-                    
-                    const match = msg.match(/\[Dev (\d+)\]\s*(.*)/);
-                    if (match) {
-                        logs.value.push({ time, dev: match[1], msg: match[2] });
-                    } else {
-                        logs.value.push({ time, dev: null, msg });
+                let ws = null;
+                let pollTimer = null;
+                const logCursors = {};
+                const activeTasks = {};
+                const seenApiLogIds = new Set();
+
+                const filteredLogs = computed(() => {
+                    return logs.value.filter((log) => {
+                        if (logDeviceFilter.value !== 'all' && String(log.dev) !== logDeviceFilter.value) {
+                            return false;
+                        }
+
+                        if (logLevelFilter.value !== 'all' && (log.level || 'info') !== logLevelFilter.value) {
+                            return false;
+                        }
+
+                        if (onlyCurrentSelection.value && selectedDevices.value.length > 0 && log.dev) {
+                            return selectedDevices.value.includes(Number(log.dev));
+                        }
+
+                        return true;
+                    });
+                });
+
+                const groupedLogs = computed(() => {
+                    const groups = [];
+                    const map = new Map();
+
+                    for (const log of filteredLogs.value) {
+                        let key = 'system';
+                        let title = '系统日志';
+
+                        if (log.taskId) {
+                            key = `task:${log.taskId}`;
+                            title = `任务 ${log.taskId}${log.dev ? ` / 设备 ${log.dev}` : ''}`;
+                        } else if (log.dev) {
+                            key = `device:${log.dev}`;
+                            title = `设备 ${log.dev}`;
+                        }
+
+                        if (!map.has(key)) {
+                            const group = { key, title, items: [] };
+                            map.set(key, group);
+                            groups.push(group);
+                        }
+
+                        map.get(key).items.push(log);
                     }
-                    
+
+                    return groups;
+                });
+
+                const hasStopTargets = computed(() => {
+                    return selectedDevices.value.length > 0 || Object.keys(activeTasks).length > 0 || isRunning.value;
+                });
+
+                const scrollLogsToBottom = () => {
                     nextTick(() => {
                         if (logContainer.value) {
                             logContainer.value.scrollTop = logContainer.value.scrollHeight;
                         }
                     });
-                    
+                };
+
+                const trimLogs = () => {
                     if (logs.value.length > 500) {
                         logs.value = logs.value.slice(-500);
+                    }
+                };
+
+                const normalizeTime = (timestamp) => {
+                    if (!timestamp) return new Date().toLocaleTimeString('zh-CN');
+                    const parsed = new Date(timestamp);
+                    if (Number.isNaN(parsed.getTime())) return new Date().toLocaleTimeString('zh-CN');
+                    return parsed.toLocaleTimeString('zh-CN');
+                };
+
+                const addLog = (msg, level = 'info', dev = null, taskId = null, raw = null) => {
+                    logs.value.push({
+                        time: new Date().toLocaleTimeString('zh-CN'),
+                        dev,
+                        msg,
+                        level,
+                        taskId,
+                        raw
+                    });
+                    trimLogs();
+                    scrollLogsToBottom();
+                };
+
+                const addWsLog = (msg) => {
+                    if (/^\[Dev\s+\d+\]/.test(msg)) {
+                        return;
+                    }
+                    const match = msg.match(/\[Dev (\d+)\]\s*(.*)/);
+                    if (match) {
+                        addLog(match[2], 'info', Number(match[1]));
+                    } else {
+                        addLog(msg, 'info');
+                    }
+                };
+
+                const addApiLog = (entry) => {
+                    if (entry.id && seenApiLogIds.has(entry.id)) {
+                        return;
+                    }
+                    if (entry.id) {
+                        seenApiLogIds.add(entry.id);
+                    }
+                    const sourcePrefix = entry.source ? `[${entry.source}] ` : '';
+                    logs.value.push({
+                        time: normalizeTime(entry.timestamp),
+                        dev: entry.device_index,
+                        msg: `${sourcePrefix}${entry.message}`,
+                        level: entry.level || 'info',
+                        taskId: entry.task_id || null,
+                        raw: JSON.stringify(entry, null, 2)
+                    });
+                    trimLogs();
+                    scrollLogsToBottom();
+                };
+
+                const pollTaskLogs = async () => {
+                    const deviceSet = new Set(selectedDevices.value);
+                    Object.keys(activeTasks).forEach((device) => deviceSet.add(Number(device)));
+                    if (deviceSet.size === 0) return;
+
+                    for (const device of deviceSet) {
+                        const cursor = logCursors[device] || 0;
+                        const query = new URLSearchParams({
+                            device_index: String(device),
+                            since_id: String(cursor),
+                            limit: '120'
+                        });
+
+                        if (activeTasks[device]) {
+                            query.set('task_id', activeTasks[device]);
+                        }
+
+                        try {
+                            const resp = await fetch(`/api/tasks/logs?${query.toString()}`);
+                            if (!resp.ok) continue;
+                            const payload = await resp.json();
+                            const items = payload.logs || [];
+
+                            for (const item of items) {
+                                addApiLog(item);
+                                if (item.message && item.message.includes('任务线程结束')) {
+                                    delete activeTasks[device];
+                                    isRunning.value = Object.keys(activeTasks).length > 0;
+                                }
+                            }
+
+                            logCursors[device] = payload.next_since_id || cursor;
+                        } catch (e) {
+                            // keep silent to avoid poll spam in UI
+                        }
                     }
                 };
 
@@ -414,76 +745,178 @@
                     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                     const wsUrl = `${protocol}//${window.location.host}/ws/logs`;
                     ws = new WebSocket(wsUrl);
-                    
+
                     ws.onopen = () => {
                         wsConnected.value = true;
-                        addLog('✅ 系统已连接');
+                        addLog('系统已连接', 'info');
                     };
-                    
+
                     ws.onmessage = (event) => {
-                        addLog(event.data);
+                        addWsLog(event.data);
                     };
-                    
+
                     ws.onclose = () => {
                         wsConnected.value = false;
-                        addLog('⚠️ 连接断开，3秒后重连...');
+                        addLog('连接断开，3秒后重连...', 'warning');
                         setTimeout(connectWs, 3000);
                     };
-                    
+
                     ws.onerror = () => {
                         wsConnected.value = false;
                     };
                 };
 
+                const onApiTypeToggle = (type, event) => {
+                    if (!event.target.checked) {
+                        return;
+                    }
+                    selectedApiType.value = type;
+                    addLog(`接口类型切换为: ${type === 'part_time' ? '兼职' : '交友'}`, 'info');
+                };
+
                 const executeCommand = async () => {
                     if (!command.value.trim()) return;
                     if (selectedDevices.value.length === 0) {
-                        addLog('⚠️ 请先选择设备');
+                        addLog('请先选择设备', 'warning');
                         return;
                     }
-                    
+
                     const cmd = command.value.trim();
                     const devices = selectedDevices.value.join(',');
-                    addLog(`📤 执行: ${cmd} (设备${devices})`);
+                    const apiKeyword = selectedApiType.value === 'part_time' ? '兼职' : '交友';
+                    addLog(`执行: ${cmd} [${apiKeyword}] (设备${devices})`, 'info');
                     command.value = '';
                     isRunning.value = true;
-                    
+
                     try {
+                        let startedCount = 0;
                         for (const device of selectedDevices.value) {
+                            if (activeTasks[device]) {
+                                addLog(`设备${device} 已有运行中任务(${activeTasks[device]})，已跳过`, 'warning', device, activeTasks[device]);
+                                continue;
+                            }
+
                             const response = await fetch('/api/tasks/execute', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ 
-                                    command: `${cmd} ${device}`,
-                                    device: device 
+                                body: JSON.stringify({
+                                    command: `${cmd} ${apiKeyword} ${device}`,
+                                    device: device
                                 })
                             });
                             const result = await response.json();
-                            addLog(`📬 设备${device}: ${JSON.stringify(result)}`);
+
+                            if (result.status === 'ok') {
+                                const taskId = result.task_id || null;
+                                if (taskId) {
+                                    activeTasks[device] = taskId;
+                                } else {
+                                    delete activeTasks[device];
+                                }
+                                logCursors[device] = 0;
+                                startedCount += 1;
+                                addLog(
+                                    `设备${device} 任务已启动${taskId ? ` (${taskId})` : ''}`,
+                                    'info',
+                                    device,
+                                    taskId,
+                                    JSON.stringify(result, null, 2)
+                                );
+                            } else {
+                                addLog(
+                                    `设备${device} 启动失败: ${result.message || '未知错误'}`,
+                                    'error',
+                                    device,
+                                    null,
+                                    JSON.stringify(result, null, 2)
+                                );
+                            }
                         }
+
+                        if (startedCount === 0) {
+                            isRunning.value = false;
+                        }
+
+                        await pollTaskLogs();
                     } catch (e) {
-                        addLog(`❌ 执行失败: ${e.message}`);
-                        isRunning.value = false;
+                        addLog(`执行失败: ${e.message}`, 'error');
+                        isRunning.value = Object.keys(activeTasks).length > 0;
                     }
                 };
 
                 const stopTask = async () => {
                     try {
-                        // 停止所有选中的设备
-                        for (const device of selectedDevices.value) {
-                            await fetch(`/api/tasks/stop/${device}`, {
-                                method: 'POST'
-                            });
-                            addLog(`⏹ 已发送停止信号到设备${device}`);
+                        const targetDevices = selectedDevices.value.length > 0
+                            ? [...selectedDevices.value]
+                            : Object.keys(activeTasks).map((d) => Number(d));
+
+                        if (targetDevices.length === 0) {
+                            const resp = await fetch('/api/tasks/stop', { method: 'POST' });
+                            let raw = null;
+                            try {
+                                raw = JSON.stringify(await resp.json(), null, 2);
+                            } catch (e) {
+                                raw = null;
+                            }
+                            addLog('已发送全局停止信号', 'warning', null, null, raw);
+                        } else {
+                            for (const device of targetDevices) {
+                                const resp = await fetch(`/api/tasks/stop/${device}`, {
+                                    method: 'POST'
+                                });
+
+                                let raw = null;
+                                try {
+                                    raw = JSON.stringify(await resp.json(), null, 2);
+                                } catch (e) {
+                                    raw = null;
+                                }
+
+                                addLog(
+                                    `已发送停止信号到设备${device}`,
+                                    'warning',
+                                    device,
+                                    activeTasks[device] || null,
+                                    raw
+                                );
+                                delete activeTasks[device];
+                            }
                         }
+
+                        await pollTaskLogs();
                         isRunning.value = false;
                     } catch (e) {
-                        addLog(`❌ 停止失败: ${e.message}`);
+                        addLog(`停止失败: ${e.message}`, 'error');
                     }
                 };
 
                 const clearLogs = () => {
                     logs.value = [];
+                    seenApiLogIds.clear();
+                };
+
+                const initializeState = async () => {
+                    const confirmed = window.confirm('确认初始化？将删除任务执行产生的固化文件。');
+                    if (!confirmed) return;
+
+                    try {
+                        const resp = await fetch('/api/tasks/initialize', { method: 'POST' });
+                        const result = await resp.json();
+                        addLog(
+                            `初始化完成: 删除 ${result.removed_count || 0} 个文件`,
+                            'warning',
+                            null,
+                            null,
+                            JSON.stringify(result, null, 2)
+                        );
+
+                        for (const key of Object.keys(activeTasks)) {
+                            delete activeTasks[key];
+                        }
+                        isRunning.value = false;
+                    } catch (e) {
+                        addLog(`初始化失败: ${e.message}`, 'error');
+                    }
                 };
 
                 const loadData = async (type) => {
@@ -504,15 +937,15 @@
                         if (type === 'accounts') content = accountsData.value;
                         if (type === 'location') content = locationData.value;
                         if (type === 'website') content = websiteData.value;
-                        
+
                         await fetch(`/api/data/${type}`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ content })
                         });
-                        addLog(`💾 ${type} 保存成功`);
+                        addLog(`${type} 保存成功`, 'info');
                     } catch (e) {
-                        addLog(`❌ 保存失败: ${e.message}`);
+                        addLog(`保存失败: ${e.message}`, 'error');
                     }
                 };
 
@@ -521,21 +954,43 @@
                     loadData('accounts');
                     loadData('location');
                     loadData('website');
+                    pollTimer = setInterval(pollTaskLogs, 1500);
+                });
+
+                onUnmounted(() => {
+                    if (pollTimer) {
+                        clearInterval(pollTimer);
+                        pollTimer = null;
+                    }
+                    if (ws) {
+                        ws.close();
+                        ws = null;
+                    }
                 });
 
                 return {
                     wsConnected,
                     logs,
+                    filteredLogs,
+                    groupedLogs,
                     command,
                     selectedDevices,
+                    selectedApiType,
+                    logDeviceFilter,
+                    logLevelFilter,
+                    onlyCurrentSelection,
+                    groupByTask,
                     activeTab,
                     accountsData,
                     locationData,
                     websiteData,
                     logContainer,
                     isRunning,
+                    hasStopTargets,
                     executeCommand,
+                    onApiTypeToggle,
                     stopTask,
+                    initializeState,
                     clearLogs,
                     saveData
                 };

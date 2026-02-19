@@ -1,98 +1,104 @@
-# AutoRPC - MYT RPA 自动化控制系统
+# MYT RPA 自动化控制系统
 
-Multi-mode RPA automation control system for social media operations.
+支持 GUI、Web 与 API 的多设备自动化控制项目。
 
-## Features
+## 当前能力
 
-- **GUI Desktop App** - Tkinter-based visual interface
-- **REST API** - HTTP API for programmatic control
-- **MCP Server** - AI model integration (Claude, GPT, etc.)
-- **OpenCode Skills** - Natural language task triggering
+- GUI 桌面控制台（Tkinter）
+- FastAPI 接口（任务执行、停止、配置、数据管理）
+- Web 控制台（`/web`）
+  - 多设备下发命令
+  - 任务详细日志（级别、设备、task_id、响应详情）
+  - 日志筛选与分组
+  - 运行中停止与初始化按钮
+- 初始化能力
+  - API: `POST /api/tasks/initialize`
+  - 可清理任务执行产生的固化状态文件并停止任务
 
-## Support
+## 运行要求
 
-| Mode | Description |
-|------|-------------|
-| GUI | Tkinter desktop application |
-| API | FastAPI REST service |
-| Skills | OpenCode natural language |
-| MCP | AI model tool integration |
-
-## Quick Start
-
-### 1. Install Dependencies
+- Python 3.10+
+- 已安装项目依赖
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configure API Keys
-
-Set your AI provider API keys via environment variables:
+可选环境变量（AI）：
 
 ```bash
 export VOLC_API_KEY="your_volc_api_key"
 export PART_TIME_API_KEY="your_part_time_api_key"
 ```
 
-### 3. Start Services
+## 启动方式
+
+### 1) GUI
 
 ```bash
-# GUI Mode (original)
 python main.py
-
-# API Mode
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-
-# MCP Mode (requires API first)
-python3 mcp_server.py
 ```
 
-## API Usage
+### 2) API + Web
 
 ```bash
-# Get config
+MYT_ROOT_PATH=$(pwd) PYTHONPATH=$(pwd) python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+Web 地址：`http://localhost:8000/web`
+
+## 常用 API
+
+```bash
+# 健康检查
+curl http://localhost:8000/health
+
+# 配置读取
 curl http://localhost:8000/api/config/
 
-# Start full flow
-curl -X POST http://localhost:8000/api/tasks/full-flow \
+# 执行命令
+curl -X POST http://localhost:8000/api/tasks/execute \
   -H "Content-Type: application/json" \
-  -d '{"devices": [1,2,3], "ai_type": "volc"}'
+  -d '{"command":"养号 交友 4","device":4}'
 
-# Batch start
-curl -X POST "http://localhost:8000/api/devices/batch/start?devices=1-5&task_type=nurture_flow"
+# 停止单设备
+curl -X POST http://localhost:8000/api/tasks/stop/4
+
+# 拉取任务日志
+curl "http://localhost:8000/api/tasks/logs?device_index=4&since_id=0&limit=120"
+
+# 初始化（清理固化状态）
+curl -X POST http://localhost:8000/api/tasks/initialize
 ```
 
-## Task Types
+## 任务说明（命令驱动）
 
-| Type | Description |
-|------|-------------|
-| full_flow | Full automation (reset → login → scrape → clone → follow → nurture loop) |
-| nurture_flow | Nurture loop (scrape → nurture → DM reply) |
-| reset_login | Reset device and login |
+常见命令关键字：
 
-## AI Providers
+- `全套` / `full` -> 完整流程
+- `养号` / `nurture` -> 养号流程
+- `重置` / `reset` -> 一键新机
+- `登录` / `login` -> 自动登录
+- `仿冒` / `clone` -> 仿冒资料
+- `关注` / `follow` -> 关注截流
+- `私信` / `dm` -> 私信回复
 
-Support for custom AI providers via `common/ai_providers.py`:
+AI 类型：
 
-- Volcano Engine (豆包大模型)
-- Custom providers can be added
+- `交友` -> `volc`
+- `兼职` -> `part_time`
 
-## Project Structure
+## 目录结构
 
+```text
+demo_py_x64/
+├── app/                # FastAPI 应用
+│   ├── api/            # 路由
+│   ├── core/           # 引擎/设备/日志核心
+│   └── models/         # 数据模型
+├── common/             # 公共模块
+├── tasks/              # 任务实现
+├── web/                # 前端控制台
+├── config/             # 配置
+└── main.py             # GUI 主程序
 ```
-├── app/              # FastAPI application
-│   ├── api/         # API routes
-│   ├── core/        # Core services
-│   └── models/      # Pydantic models
-├── common/          # Shared modules
-├── tasks/           # Task implementations
-├── skills/          # Python module (legacy)
-├── mcp_server.py    # MCP server
-├── main.py          # GUI application
-└── config/          # Configuration
-```
-
-## License
-
-MIT

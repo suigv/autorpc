@@ -6,7 +6,7 @@ import logging
 from typing import Dict, Optional
 from datetime import datetime
 
-from app.core.config_loader import get_host_ip, get_stop_hour
+from app.core.config_loader import get_host_ip, get_stop_hour, get_total_devices
 from app.core.port_calc import calculate_ports
 from app.models.device import DeviceStatus, AIType
 
@@ -58,6 +58,10 @@ class DeviceManager:
         return self._devices[index]
 
     def get_all_devices(self) -> Dict[int, Device]:
+        if not self._devices:
+            total = get_total_devices()
+            for index in range(1, total + 1):
+                self._devices[index] = Device(index)
         return self._devices
 
     def get_device_info(self, index: int) -> dict:
