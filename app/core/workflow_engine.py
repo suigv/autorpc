@@ -111,7 +111,11 @@ class WorkflowEngine:
             run_follow_followers_task(device_info, None, stop_event)
             time.sleep(2)
 
-            self.log(device_index, "Step 6: 私信回复")
+            self.log(device_index, "Step 6: 智能养号")
+            run_nurture_task(device_info, None, stop_event)
+            time.sleep(2)
+
+            self.log(device_index, "Step 7: 私信回复")
             run_reply_dm_task(device_info, None, stop_event)
             time.sleep(2)
 

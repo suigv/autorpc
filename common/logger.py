@@ -1,6 +1,7 @@
 # common/logger.py
 import logging
 import sys
+import os
 
 class GuiLogHandler(logging.Handler):
     """自定义 Handler，将日志发送到 GUI 回调"""
@@ -27,9 +28,10 @@ class Logger:
         self.logger = logging.getLogger("MytLogger")
         self.logger.setLevel(logging.INFO)
         
-        # 控制台输出
+        # 控制台输出 - 实时刷新
         console = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        console.stream.reconfigure(line_buffering=True)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%H:%M:%S')
         console.setFormatter(formatter)
         self.logger.addHandler(console)
 
@@ -46,6 +48,11 @@ class Logger:
         gui_handler.setFormatter(logging.Formatter('[%(asctime)s] %(message)s', datefmt='%H:%M:%S'))
         self.logger.addHandler(gui_handler)
 
+    def flush(self):
+        """强制刷新所有 handler"""
+        for handler in self.logger.handlers:
+            handler.flush()
+
     def log(self, device_index, message, level="info"):
         full_msg = f"[Dev {device_index}] {message}"
         if level == "info":
@@ -54,6 +61,8 @@ class Logger:
             self.logger.error(full_msg)
         elif level == "warning":
             self.logger.warning(full_msg)
+        # 立即刷新输出
+        self.flush()
 
 # 全局单例
 log_manager = Logger()
