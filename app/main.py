@@ -9,6 +9,7 @@ import os
 from app.api import devices, tasks, config
 from app.api.data import router as data_router
 from app.api.command import router as command_router
+from app.api.stop import router as stop_router
 from app.core.log_manager import log_manager
 
 logging.basicConfig(
@@ -31,6 +32,7 @@ app.include_router(tasks.router, prefix="/api/tasks", tags=["tasks"])
 app.include_router(config.router, prefix="/api/config", tags=["config"])
 app.include_router(data_router, prefix="/api/data", tags=["data"])
 app.include_router(command_router, prefix="/api/tasks", tags=["command"])
+app.include_router(stop_router, prefix="/api/tasks", tags=["stop"])
 
 @app.get("/")
 def root():

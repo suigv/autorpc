@@ -282,6 +282,18 @@
         .btn-secondary:hover {
             background: rgba(255,255,255,0.15);
         }
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4757, #ff6b81);
+            color: #fff;
+        }
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255,71,87,0.4);
+        }
+        .btn-danger:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
         
         /* 滚动条 */
         ::-webkit-scrollbar { width: 6px; }
@@ -351,8 +363,10 @@
         <div class="command">
             <input v-model="command" 
                    placeholder="输入指令: 养号、全套、重置、关注、私信..." 
-                   @keyup.enter="executeCommand">
-            <button class="btn btn-primary" @click="executeCommand" :disabled="!command.trim()">▶ 执行</button>
+                   @keyup.enter="executeCommand"
+                   :disabled="isRunning">
+            <button class="btn btn-primary" @click="executeCommand" :disabled="!command.trim() || isRunning">▶ 执行</button>
+            <button class="btn btn-danger" @click="stopTask" :disabled="!isRunning">⏹ 停止</button>
             <button class="btn btn-secondary" @click="clearLogs">🗑️ 清空</button>
         </div>
     </div>
@@ -371,6 +385,7 @@
                 const locationData = ref('');
                 const websiteData = ref('');
                 const logContainer = ref(null);
+                const isRunning = ref(false);
                 let ws = null;
 
                 const addLog = (msg) => {
@@ -431,6 +446,7 @@
                     const devices = selectedDevices.value.join(',');
                     addLog(`📤 执行: ${cmd} (设备${devices})`);
                     command.value = '';
+                    isRunning.value = true;
                     
                     try {
                         for (const device of selectedDevices.value) {
@@ -447,6 +463,19 @@
                         }
                     } catch (e) {
                         addLog(`❌ 执行失败: ${e.message}`);
+                        isRunning.value = false;
+                    }
+                };
+
+                const stopTask = async () => {
+                    try {
+                        await fetch('/api/tasks/stop', {
+                            method: 'POST'
+                        });
+                        addLog('⏹ 已发送停止信号');
+                        isRunning.value = false;
+                    } catch (e) {
+                        addLog(`❌ 停止失败: ${e.message}`);
                     }
                 };
 
@@ -501,7 +530,9 @@
                     locationData,
                     websiteData,
                     logContainer,
+                    isRunning,
                     executeCommand,
+                    stopTask,
                     clearLogs,
                     saveData
                 };
