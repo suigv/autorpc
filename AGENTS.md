@@ -34,22 +34,34 @@ demo_py_x64/
 
 ## 启动方式
 
-### 1. GUI 桌面应用 (原有)
+### 1. GUI 桌面应用
 ```bash
-python main.py
+cd demo_py_x64
+/usr/bin/python3 main.py
 ```
 
 ### 2. REST API 服务
 ```bash
+cd demo_py_x64
+
 # 安装依赖
 pip3 install --break-system-packages -r requirements.txt
+pip3 install websockets uvicorn[standard] --break-system-packages
 
-# 启动服务
-cd demo_py_x64
-PYTHONPATH=$(pwd) uvicorn app.main:app --host 0.0.0.0 --port 8000
+# 启动服务（必须设置环境变量）
+MYT_ROOT_PATH=$(pwd) PYTHONPATH=$(pwd) uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-### 3. MCP 服务 (需先启动 API)
+### 3. Web 前端控制台
+启动API服务后访问：**http://localhost:8000/web**
+
+功能：
+- 设备多选（复选框）
+- 实时日志显示
+- 发送指令执行任务
+- 编辑账号/位置/网站配置
+
+### 4. MCP 服务 (需先启动 API)
 ```bash
 # 方式一：直接运行
 python3 mcp_server.py
@@ -74,16 +86,20 @@ curl http://localhost:8000/api/config/
 # 修改 IP
 curl -X PUT "http://localhost:8000/api/config/host-ip?host_ip=192.168.1.100"
 
-# 创建完整流程任务
-curl -X POST http://localhost:8000/api/tasks/full-flow \
+# 执行任务（支持自然语言）
+curl -X POST http://localhost:8000/api/tasks/execute \
   -H "Content-Type: application/json" \
-  -d '{"devices": [1,2,3], "ai_type": "volc"}'
-
-# 批量启动
-curl -X POST "http://localhost:8000/api/devices/batch/start?devices=1-5&task_type=nurture_flow"
+  -d '{"command": "养号 3 volc"}'
 ```
 
-### 方式三：OpenCode Skills
+### 方式三：Web 前端
+
+访问 http://localhost:8000/web
+- 选择设备（多选）
+- 输入指令：养号、全套、重置、关注、私信等
+- 实时查看日志
+
+### 方式四：OpenCode Skills
 
 在 OpenCode 中直接说话触发：
 
@@ -111,24 +127,22 @@ curl -X POST "http://localhost:8000/api/devices/batch/start?devices=1-5&task_typ
 | GET | `/api/config/` | 获取全部配置 |
 | PUT | `/api/config/host-ip?host_ip=xxx` | 修改设备 IP |
 
-### 设备管理
+### 数据管理
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/devices/` | 列出所有设备 |
-| GET | `/api/devices/{id}/status` | 获取设备状态 |
-| POST | `/api/devices/{id}/start?task_type=xxx` | 启动设备任务 |
-| POST | `/api/devices/batch/start?devices=1-5` | 批量启动 |
+| GET | `/api/data/accounts` | 获取账号列表 |
+| PUT | `/api/data/accounts` | 更新账号列表 |
+| GET | `/api/data/location` | 获取位置列表 |
+| PUT | `/api/data/location` | 更新位置列表 |
+| GET | `/api/data/website` | 获取网站列表 |
+| PUT | `/api/data/website` | 更新网站列表 |
 
-### 任务管理
+### 任务执行
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/tasks/full-flow` | 完整流程 |
-| POST | `/api/tasks/nurture-flow` | 养号流程 |
-| POST | `/api/tasks/reset-login` | 重置登录 |
-| GET | `/api/tasks/` | 任务列表 |
-| GET | `/api/tasks/{task_id}` | 任务详情 |
+| POST | `/api/tasks/execute` | 执行任务（自然语言） |
 
 ---
 
@@ -166,6 +180,14 @@ engine.run_reset_login([1], "volc")
 | default_ai | 默认 AI 类型 | "volc" |
 | stop_hour | 停止时间 (小时) | 18 |
 | cycle_interval | 循环间隔 (秒) | 15 |
+
+### 数据文件格式
+
+| 文件 | 格式 | 说明 |
+|------|------|------|
+| 账号.txt | 用户名----密码----2FA密钥 | 每行一个账号 |
+| 位置.txt | 每行一个位置 | volc用第1行，part_time用第2行 |
+| 网页.txt | 每行一个网址 | volc用第1行，part_time用第2行 |
 
 ---
 
