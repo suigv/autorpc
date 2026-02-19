@@ -107,7 +107,7 @@ class WorkflowEngine:
             run_clone_profile_task(device_info, None, stop_event)
             time.sleep(2)
 
-            self.log(device_index, "Step 5: 关注粉丝")
+            self.log(device_index, "Step 5: 关注截流")
             run_follow_followers_task(device_info, None, stop_event)
             time.sleep(2)
 
@@ -115,7 +115,15 @@ class WorkflowEngine:
             run_nurture_task(device_info, None, stop_event)
             time.sleep(2)
 
-            self.log(device_index, "Step 7: 私信回复")
+            self.log(device_index, "Step 7: 主页互动")
+            run_home_interaction_task(device_info, None, stop_event)
+            time.sleep(2)
+
+            self.log(device_index, "Step 8: 引用截流")
+            run_quote_intercept_task(device_info, None, stop_event)
+            time.sleep(2)
+
+            self.log(device_index, "Step 9: 私信回复")
             run_reply_dm_task(device_info, None, stop_event)
             time.sleep(2)
 
