@@ -12,6 +12,22 @@ from app.core.port_calc import calculate_ports
 
 logger = logging.getLogger(__name__)
 
+# 全局停止事件存储 - 所有实例共享
+_global_stop_events: Dict[int, threading.Event] = {}
+
+
+def get_stop_event(device_index: int) -> threading.Event:
+    """获取设备的全局停止事件"""
+    if device_index not in _global_stop_events:
+        _global_stop_events[device_index] = threading.Event()
+    return _global_stop_events[device_index]
+
+
+def clear_stop_event(device_index: int):
+    """清除设备的停止事件"""
+    if device_index in _global_stop_events:
+        _global_stop_events[device_index].clear()
+
 
 class WorkflowEngine:
     def __init__(self):
@@ -19,8 +35,12 @@ class WorkflowEngine:
         self.host_ip = get_host_ip()
         self.stop_hour = get_stop_hour()
         self.cycle_interval = get_cycle_interval()
-        self._stop_events: Dict[int, threading.Event] = {}
         self._running_tasks: Dict[int, str] = {}
+
+    @property
+    def _stop_events(self):
+        """使用全局stop_events"""
+        return _global_stop_events
 
     def get_device_info(self, device_index: int, ai_type: str) -> dict:
         rpa_port, api_port = calculate_ports(device_index)
@@ -71,8 +91,8 @@ class WorkflowEngine:
         return {"total": len(devices), "results": results}
 
     def _run_device_full_flow(self, device_index: int, ai_type: str) -> bool:
-        self._stop_events[device_index] = threading.Event()
-        stop_event = self._stop_events[device_index]
+        stop_event = get_stop_event(device_index)
+        clear_stop_event(device_index)
         device_info = self.get_device_info(device_index, ai_type)
 
         try:
@@ -192,8 +212,8 @@ class WorkflowEngine:
         return {"total": len(devices), "results": results}
 
     def _run_device_nurture_flow(self, device_index: int, ai_type: str) -> bool:
-        self._stop_events[device_index] = threading.Event()
-        stop_event = self._stop_events[device_index]
+        stop_event = get_stop_event(device_index)
+        clear_stop_event(device_index)
         device_info = self.get_device_info(device_index, ai_type)
 
         try:
@@ -274,8 +294,8 @@ class WorkflowEngine:
         return {"total": len(devices), "results": results}
 
     def _run_device_reset_login(self, device_index: int, ai_type: str) -> bool:
-        self._stop_events[device_index] = threading.Event()
-        stop_event = self._stop_events[device_index]
+        stop_event = get_stop_event(device_index)
+        clear_stop_event(device_index)
         device_info = self.get_device_info(device_index, ai_type)
 
         try:
@@ -311,22 +331,21 @@ class WorkflowEngine:
             self._stop_events.pop(device_index, None)
 
     def stop_device(self, device_index: int):
-        stop_event = self._stop_events.get(device_index)
-        if stop_event:
-            stop_event.set()
-            
-            # 额外：尝试强制停止设备上的X App
-            try:
-                from common.bot_agent import BotAgent
-                bot = BotAgent(device_index, self.host_ip)
-                if bot.connect():
-                    bot.force_stop_app()
-                    bot.quit()
-            except:
-                pass
-            
-            return True
-        return False
+        """停止指定设备的任务"""
+        stop_event = get_stop_event(device_index)
+        stop_event.set()
+        
+        # 额外：尝试强制停止设备上的X App
+        try:
+            from common.bot_agent import BotAgent
+            bot = BotAgent(device_index, self.host_ip)
+            if bot.connect():
+                bot.force_stop_app()
+                bot.quit()
+        except:
+            pass
+        
+        return True
 
     def stop_all(self):
         for stop_event in self._stop_events.values():
