@@ -39,12 +39,16 @@ class WorkflowEngine:
     def check_device_online(self, device_index: int) -> bool:
         try:
             from common.bot_agent import BotAgent
+            print(f"DEBUG check_device_online: device={device_index}, host_ip={self.host_ip}")
             bot = BotAgent(device_index, self.host_ip)
-            if bot.connect():
+            result = bot.connect()
+            print(f"DEBUG check_device_online: connect result={result}")
+            if result:
                 bot.quit()
                 return True
         except Exception as e:
             logger.warning(f"Device {device_index} online check failed: {e}")
+            print(f"DEBUG check_device_online error: {e}")
         return False
 
     def run_full_flow(self, devices: list, ai_type: str) -> dict:

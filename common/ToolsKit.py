@@ -51,6 +51,15 @@ class ToolsKit(object):
 
     def GetRootPath(self):
         """获取当前程序的可执行文件路径"""
+        # 首先检查环境变量
+        if 'MYT_ROOT_PATH' in os.environ:
+            return os.environ['MYT_ROOT_PATH']
+        
+        # 检查当前工作目录是否有config目录
+        cwd = os.getcwd()
+        if os.path.exists(os.path.join(cwd, 'config', 'devices.json')):
+            return cwd
+        
         # in bundle
         args = sys.argv[0]
         # 判断是否 是相对路径 还是绝对路径

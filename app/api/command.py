@@ -86,7 +86,7 @@ def parse_command(command: str):
     return task_type, devices, ai_type
 
 @router.post("/execute")
-async def execute_command(req: CommandRequest, background_tasks: BackgroundTasks):
+def execute_command(req: CommandRequest):
     """执行命令"""
     task_type, devices, ai_type = parse_command(req.command)
     
@@ -102,20 +102,43 @@ async def execute_command(req: CommandRequest, background_tasks: BackgroundTasks
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     
     from app.core.workflow_engine import WorkflowEngine
+    from app.core.config_loader import get_host_ip
+    
+    # 调试：打印配置
+    print(f"DEBUG: Host IP = {get_host_ip()}")
+    
+    engine = WorkflowEngine()
+    print(f"DEBUG: Engine host_ip = {engine.host_ip}")
+    
+    # 调试BotAgent
+    from common.bot_agent import BotAgent
+    bot = BotAgent(3, engine.host_ip)
+    print(f"DEBUG: BotAgent rpa lib path = {bot.rpa._lib_PATH}")
+    bot_result = bot.connect()
+    print(f"DEBUG: BotAgent connect result = {bot_result}")
+    if bot_result:
+        bot.quit()
+    
+    # 直接执行任务（不使用background_tasks，确保日志输出）
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    
+    from app.core.workflow_engine import WorkflowEngine
     
     engine = WorkflowEngine()
     
-    def run_task():
+    try:
         if task_type == 'full_flow':
             engine.run_full_flow(devices, ai_type)
         elif task_type == 'nurture_flow':
             engine.run_nurture_flow(devices, ai_type)
         elif task_type == 'reset_login':
             engine.run_reset_login(devices, ai_type)
-    
-    background_tasks.add_task(run_task)
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
     
     return {
         "status": "ok", 
-        "message": f"任务已启动: {task_type}, 设备: {devices}, AI: {ai_type}"
+        "message": f"任务完成: {task_type}, 设备: {devices}, AI: {ai_type}"
     }
