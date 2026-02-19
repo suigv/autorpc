@@ -2,6 +2,7 @@
 import logging
 import sys
 import os
+import atexit
 
 class GuiLogHandler(logging.Handler):
     """自定义 Handler，将日志发送到 GUI 回调"""
@@ -13,10 +14,13 @@ class GuiLogHandler(logging.Handler):
         if self.callback:
             msg = self.format(record)
             self.callback(msg)
+        # 立即刷新
+        self.flush()
 
 class Logger:
     _instance = None
     _gui_callback = None
+    _initialized = False
 
     def __new__(cls):
         if cls._instance is None:
@@ -25,15 +29,24 @@ class Logger:
         return cls._instance
 
     def _init(self):
+        if Logger._initialized:
+            return
+        
         self.logger = logging.getLogger("MytLogger")
         self.logger.setLevel(logging.INFO)
+        self.logger.propagate = False
+        
+        # 清除已有 handlers
+        self.logger.handlers.clear()
         
         # 控制台输出 - 实时刷新
         console = logging.StreamHandler(sys.stdout)
-        console.stream.reconfigure(line_buffering=True)
+        console.stream = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%H:%M:%S')
         console.setFormatter(formatter)
         self.logger.addHandler(console)
+        
+        Logger._initialized = True
 
     def set_gui_callback(self, callback):
         """设置 GUI 日志回调函数"""
