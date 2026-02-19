@@ -299,21 +299,20 @@ class BotAgent:
         return False
 
     def ensure_app_running(self):
-        """确保X App正在运行"""
+        """确保X App正在运行且在前台"""
         import time
         pkg = self.cfg.PACKAGE_NAME
         
-        # 方法1：检查进程是否存在
+        # 检查进程是否存在
         result = self.shell_cmd(f"ps -A | grep {pkg}")
         app_running = pkg in result
         
         if not app_running:
-            # App确实没有运行（崩溃/被杀死）
+            # App没有运行（崩溃/被杀死），需要启动
             self.log("⚠️ 检测到App未运行，尝试启动...")
             self.launch_app()
             time.sleep(3)
             
-            # 检查是否成功启动
             if self.is_on_home_page():
                 self.log("✅ App已启动")
                 return True
@@ -329,11 +328,21 @@ class BotAgent:
             if self.is_on_home_page():
                 return True
             else:
-                # App在后台但未响应，尝试恢复
-                self.log("⚠️ App在后台，尝试恢复...")
-                self.launch_app()
-                time.sleep(3)
-                return self.is_on_home_page()
+                # App在后台运行，按Home键尝试回到桌面
+                self.log("⚠️ App在后台，按Home键...")
+                self.shell_cmd("input keyevent KEYCODE_HOME")
+                time.sleep(2)
+                
+                # 检查是否回到主页
+                if self.is_on_home_page():
+                    self.log("✅ 已回到主页")
+                    return True
+                else:
+                    # 尝试启动App
+                    self.log("⚠️ 尝试启动App...")
+                    self.launch_app()
+                    time.sleep(3)
+                    return self.is_on_home_page()
 
     def force_stop_app(self):
         """强制停止App"""
