@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MYT RPA 控制台</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #app {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            grid-template-rows: 60px 1fr 200px;
+            height: 100vh;
+            gap: 10px;
+            padding: 10px;
+        }
+        .header {
+            grid-column: 1 / -1;
+            background: #16213e;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+        .header h1 { font-size: 24px; color: #e94560; }
+        .status { color: #4ecca3; }
+        
+        .sidebar {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 15px;
+            overflow-y: auto;
+        }
+        .sidebar h3 { margin-bottom: 15px; color: #4ecca3; }
+        
+        .logs {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 15px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+        }
+        .log-item { margin-bottom: 5px; padding: 3px 0; border-bottom: 1px solid #0f3460; }
+        .log-time { color: #666; margin-right: 10px; }
+        .log-dev { color: #e94560; margin-right: 8px; }
+        
+        .command {
+            grid-column: 1 / -1;
+            background: #16213e;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .command input {
+            flex: 1;
+            background: #0f3460;
+            border: 1px solid #533483;
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .command input:focus { outline: none; border-color: #e94560; }
+        .btn {
+            background: #e94560;
+            color: #fff;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn:hover { background: #d63447; }
+        .btn:disabled { background: #533483; cursor: not-allowed; }
+        
+        .tab-btn {
+            background: #0f3460;
+            border: none;
+            color: #aaa;
+            padding: 8px 15px;
+            margin: 3px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .tab-btn.active { background: #e94560; color: #fff; }
+        
+        textarea {
+            width: 100%;
+            height: 120px;
+            background: #0f3460;
+            border: 1px solid #533483;
+            color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            resize: vertical;
+        }
+        .data-section { margin-bottom: 20px; }
+        .data-section h4 { margin: 10px 0; color: #4ecca3; }
+        .save-btn {
+            background: #4ecca3;
+            color: #1a1a2e;
+            margin-top: 10px;
+        }
+        
+        .device-panel {
+            background: #0f3460;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .device-panel:hover { background: #533483; }
+        .device-panel.active { border: 2px solid #e94560; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <h1>MYT RPA 控制台</h1>
+            <div class="status">
+                <span v-if="wsConnected">🟢 WebSocket已连接</span>
+                <span v-else>🔴 WebSocket未连接</span>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <h3>📱 设备列表</h3>
+            <div class="device-panel" 
+                 v-for="i in 10" 
+                 :key="i"
+                 :class="{ active: selectedDevice === i }"
+                 @click="selectDevice(i)">
+                设备 #{{ i }}
+            </div>
+            
+            <h3 style="margin-top: 20px;">📁 数据管理</h3>
+            <button class="tab-btn" :class="{ active: activeTab === 'accounts' }" @click="activeTab = 'accounts'">账号</button>
+            <button class="tab-btn" :class="{ active: activeTab === 'location' }" @click="activeTab = 'location'">位置</button>
+            <button class="tab-btn" :class="{ active: activeTab === 'website' }" @click="activeTab = 'website'">网站</button>
+            
+            <div v-if="activeTab === 'accounts'" class="data-section">
+                <h4>账号列表</h4>
+                <textarea v-model="accountsData" placeholder="格式: 用户名----密码----2FA密钥"></textarea>
+                <button class="btn save-btn" @click="saveData('accounts')">保存账号</button>
+            </div>
+            <div v-if="activeTab === 'location'" class="data-section">
+                <h4>位置列表</h4>
+                <textarea v-model="locationData" placeholder="每行一个位置"></textarea>
+                <button class="btn save-btn" @click="saveData('location')">保存位置</button>
+            </div>
+            <div v-if="activeTab === 'website'" class="data-section">
+                <h4>网站列表</h4>
+                <textarea v-model="websiteData" placeholder="每行一个网站"></textarea>
+                <button class="btn save-btn" @click="saveData('website')">保存网站</button>
+            </div>
+        </div>
+        
+        <div class="logs" ref="logContainer">
+            <div class="log-item" v-for="(log, index) in logs" :key="index">
+                <span class="log-time">{{ log.time }}</span>
+                <span class="log-dev" v-if="log.dev">[Dev {{ log.dev }}]</span>
+                <span>{{ log.msg }}</span>
+            </div>
+        </div>
+        
+        <div class="command">
+            <input v-model="command" 
+                   placeholder="输入指令，如: 养号 3 volc, 全套 1-5 volc, 停止 3" 
+                   @keyup.enter="executeCommand">
+            <button class="btn" @click="executeCommand" :disabled="!command.trim()">执行</button>
+            <button class="btn" @click="clearLogs" style="background: #533483;">清空日志</button>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                const wsConnected = ref(false);
+                const logs = ref([]);
+                const command = ref('');
+                const selectedDevice = ref(1);
+                const activeTab = ref('accounts');
+                const accountsData = ref('');
+                const locationData = ref('');
+                const websiteData = ref('');
+                const logContainer = ref(null);
+                let ws = null;
+
+                const addLog = (msg) => {
+                    const now = new Date();
+                    const time = now.toLocaleTimeString('zh-CN');
+                    
+                    // 解析日志格式 [Dev 3] 消息
+                    const match = msg.match(/\[Dev (\d+)\]\s*(.*)/);
+                    if (match) {
+                        logs.value.push({ time, dev: match[1], msg: match[2] });
+                    } else {
+                        logs.value.push({ time, dev: null, msg });
+                    }
+                    
+                    // 自动滚动到底部
+                    nextTick(() => {
+                        if (logContainer.value) {
+                            logContainer.value.scrollTop = logContainer.value.scrollHeight;
+                        }
+                    });
+                    
+                    // 限制日志数量
+                    if (logs.value.length > 500) {
+                        logs.value = logs.value.slice(-500);
+                    }
+                };
+
+                const connectWs = () => {
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const wsUrl = `${protocol}//${window.location.host}/api/ws/logs`;
+                    ws = new WebSocket(wsUrl);
+                    
+                    ws.onopen = () => {
+                        wsConnected.value = true;
+                        addLog('WebSocket已连接');
+                    };
+                    
+                    ws.onmessage = (event) => {
+                        addLog(event.data);
+                    };
+                    
+                    ws.onclose = () => {
+                        wsConnected.value = false;
+                        addLog('WebSocket断开，3秒后重连...');
+                        setTimeout(connectWs, 3000);
+                    };
+                    
+                    ws.onerror = () => {
+                        wsConnected.value = false;
+                    };
+                };
+
+                const selectDevice = (i) => {
+                    selectedDevice.value = i;
+                };
+
+                const executeCommand = async () => {
+                    if (!command.value.trim()) return;
+                    
+                    const cmd = command.value.trim();
+                    addLog(`> ${cmd}`);
+                    command.value = '';
+                    
+                    try {
+                        const response = await fetch('/api/tasks/execute', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                command: cmd,
+                                device: selectedDevice.value 
+                            })
+                        });
+                        const result = await response.json();
+                        addLog(JSON.stringify(result));
+                    } catch (e) {
+                        addLog(`执行失败: ${e.message}`);
+                    }
+                };
+
+                const clearLogs = () => {
+                    logs.value = [];
+                };
+
+                const loadData = async (type) => {
+                    try {
+                        const response = await fetch(`/api/data/${type}`);
+                        const data = await response.json();
+                        if (type === 'accounts') accountsData.value = data.data || '';
+                        if (type === 'location') locationData.value = data.data || '';
+                        if (type === 'website') websiteData.value = data.data || '';
+                    } catch (e) {
+                        console.error(e);
+                    }
+                };
+
+                const saveData = async (type) => {
+                    try {
+                        let content = '';
+                        if (type === 'accounts') content = accountsData.value;
+                        if (type === 'location') content = locationData.value;
+                        if (type === 'website') content = websiteData.value;
+                        
+                        await fetch(`/api/data/${type}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ content })
+                        });
+                        addLog(`${type} 保存成功`);
+                    } catch (e) {
+                        addLog(`保存失败: ${e.message}`);
+                    }
+                };
+
+                onMounted(() => {
+                    connectWs();
+                    loadData('accounts');
+                    loadData('location');
+                    loadData('website');
+                });
+
+                return {
+                    wsConnected,
+                    logs,
+                    command,
+                    selectedDevice,
+                    activeTab,
+                    accountsData,
+                    locationData,
+                    websiteData,
+                    logContainer,
+                    selectDevice,
+                    executeCommand,
+                    clearLogs,
+                    saveData
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
