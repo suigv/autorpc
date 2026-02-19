@@ -1,5 +1,5 @@
 {
-  "host_ip": "192.168.1.215",
+  "host_ip": "100.64.28.45",
   "total_devices": 10,
   "default_ai": "volc",
   "stop_hour": 18,

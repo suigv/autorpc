@@ -82,9 +82,11 @@ class WorkflowEngine:
             from tasks.task_soft_reset import run_soft_reset_task
             from tasks.task_login import run_login_task
             from tasks.task_clone_profile import run_clone_profile_task
+            from tasks.task_quote_intercept import run_quote_intercept_task
             from tasks.task_follow_followers import run_follow_followers_task
             from tasks.task_nurture import run_nurture_task
             from tasks.task_reply_dm import run_reply_dm_task
+            from tasks.task_home_interaction import run_home_interaction_task
             from tasks.task_scrape_blogger import ensure_blogger_ready
 
             self.log(device_index, "Step 1: 一键新机")
@@ -107,12 +109,25 @@ class WorkflowEngine:
 
             self.log(device_index, "Step 5: 关注粉丝")
             run_follow_followers_task(device_info, None, stop_event)
+            time.sleep(2)
+
+            self.log(device_index, "Step 6: 私信回复")
+            run_reply_dm_task(device_info, None, stop_event)
+            time.sleep(2)
 
             self.log(device_index, "进入循环任务阶段")
 
             while not stop_event.is_set() and not check_stop_condition(self.stop_hour):
                 self.log(device_index, "养号互动")
                 run_nurture_task(device_info, None, stop_event)
+                time.sleep(2)
+
+                self.log(device_index, "主页互动")
+                run_home_interaction_task(device_info, None, stop_event)
+                time.sleep(2)
+
+                self.log(device_index, "引用截流")
+                run_quote_intercept_task(device_info, None, stop_event)
                 time.sleep(2)
 
                 self.log(device_index, "私信回复")
@@ -171,6 +186,8 @@ class WorkflowEngine:
 
             from tasks.task_nurture import run_nurture_task
             from tasks.task_reply_dm import run_reply_dm_task
+            from tasks.task_home_interaction import run_home_interaction_task
+            from tasks.task_quote_intercept import run_quote_intercept_task
             from tasks.task_scrape_blogger import ensure_blogger_ready
 
             self.log(device_index, "Step 1: 抓取博主")
@@ -182,6 +199,14 @@ class WorkflowEngine:
             while not stop_event.is_set() and not check_stop_condition(self.stop_hour):
                 self.log(device_index, "养号互动")
                 run_nurture_task(device_info, None, stop_event)
+                time.sleep(2)
+
+                self.log(device_index, "主页互动")
+                run_home_interaction_task(device_info, None, stop_event)
+                time.sleep(2)
+
+                self.log(device_index, "引用截流")
+                run_quote_intercept_task(device_info, None, stop_event)
                 time.sleep(2)
 
                 self.log(device_index, "私信回复")
