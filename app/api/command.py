@@ -70,8 +70,22 @@ def run_task_in_thread(task_type, devices, ai_type):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     
     from app.core.workflow_engine import WorkflowEngine
+    from app.core.config_loader import get_host_ip
+    from app.core.port_calc import calculate_ports
     
     engine = WorkflowEngine()
+    
+    rpa_port, api_port = calculate_ports(devices[0])
+    device_info = {
+        "ip": get_host_ip(),
+        "index": devices[0],
+        "rpa_port": rpa_port,
+        "api_port": api_port,
+        "ai_type": ai_type
+    }
+    
+    import threading
+    stop_event = threading.Event()
     
     try:
         if task_type == 'full_flow':
@@ -80,6 +94,15 @@ def run_task_in_thread(task_type, devices, ai_type):
             engine.run_nurture_flow(devices, ai_type)
         elif task_type == 'reset_login':
             engine.run_reset_login(devices, ai_type)
+        elif task_type == 'dm':
+            from tasks.task_reply_dm import run_reply_dm_task
+            run_reply_dm_task(device_info, None, stop_event)
+        elif task_type == 'follow':
+            from tasks.task_follow_followers import run_follow_followers_task
+            run_follow_followers_task(device_info, None, stop_event)
+        elif task_type == 'clone':
+            from tasks.task_clone_profile import run_clone_profile_task
+            run_clone_profile_task(device_info, None, stop_event)
     except Exception as e:
         print(f"任务执行异常: {e}")
 

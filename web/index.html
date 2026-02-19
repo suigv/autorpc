@@ -469,10 +469,13 @@
 
                 const stopTask = async () => {
                     try {
-                        await fetch('/api/tasks/stop', {
-                            method: 'POST'
-                        });
-                        addLog('⏹ 已发送停止信号');
+                        // 停止所有选中的设备
+                        for (const device of selectedDevices.value) {
+                            await fetch(`/api/tasks/stop/${device}`, {
+                                method: 'POST'
+                            });
+                            addLog(`⏹ 已发送停止信号到设备${device}`);
+                        }
                         isRunning.value = false;
                     } catch (e) {
                         addLog(`❌ 停止失败: ${e.message}`);
