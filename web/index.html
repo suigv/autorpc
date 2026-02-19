@@ -5,182 +5,355 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MYT RPA 控制台</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1a1a2e;
-            color: #eee;
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            color: #e0e0e0;
             height: 100vh;
             overflow: hidden;
         }
         #app {
             display: grid;
-            grid-template-columns: 300px 1fr;
-            grid-template-rows: 60px 1fr 200px;
+            grid-template-columns: 320px 1fr;
+            grid-template-rows: 70px 1fr 160px;
             height: 100vh;
-            gap: 10px;
-            padding: 10px;
+            gap: 12px;
+            padding: 12px;
         }
+        
+        /* 顶部导航 */
         .header {
             grid-column: 1 / -1;
-            background: #16213e;
-            border-radius: 8px;
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 20px;
+            padding: 0 30px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
-        .header h1 { font-size: 24px; color: #e94560; }
-        .status { color: #4ecca3; }
+        .header h1 { 
+            font-size: 26px; 
+            font-weight: 700;
+            background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .status { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: rgba(0,0,0,0.3);
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff6b6b;
+            animation: pulse 2s infinite;
+        }
+        .status-dot.connected { background: #2ed573; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
         
+        /* 左侧边栏 */
         .sidebar {
-            background: #16213e;
-            border-radius: 8px;
-            padding: 15px;
+            background: rgba(255,255,255,0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
             overflow-y: auto;
+            border: 1px solid rgba(255,255,255,0.08);
         }
-        .sidebar h3 { margin-bottom: 15px; color: #4ecca3; }
+        .section-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #888;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
         
+        /* 设备选择 - 复选框样式 */
+        .device-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+        .device-item {
+            position: relative;
+        }
+        .device-item input[type="checkbox"] {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .device-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        .device-label:hover {
+            background: rgba(255,255,255,0.1);
+            transform: translateY(-2px);
+        }
+        .device-item input:checked + .device-label {
+            background: linear-gradient(135deg, rgba(255,107,107,0.2), rgba(254,202,87,0.2));
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+        .device-label::before {
+            content: '';
+            width: 18px;
+            height: 18px;
+            border: 2px solid #666;
+            border-radius: 4px;
+            margin-right: 8px;
+            transition: all 0.2s;
+        }
+        .device-item input:checked + .device-label::before {
+            background: #ff6b6b;
+            border-color: #ff6b6b;
+        }
+        
+        /* 标签页 */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border: none;
+            color: #888;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+        .tab-btn:hover { background: rgba(255,255,255,0.1); }
+        .tab-btn.active {
+            background: linear-gradient(135deg, #ff6b6b, #feca57);
+            color: #1a1a2e;
+            font-weight: 600;
+        }
+        
+        /* 数据编辑区 */
+        .data-section h4 {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 10px;
+        }
+        textarea {
+            width: 100%;
+            height: 140px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #e0e0e0;
+            padding: 12px;
+            border-radius: 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            resize: none;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #ff6b6b;
+        }
+        .save-btn {
+            width: 100%;
+            margin-top: 12px;
+            padding: 12px;
+            background: linear-gradient(135deg, #2ed573, #7bed9f);
+            border: none;
+            color: #1a1a2e;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .save-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(46,213,115,0.3);
+        }
+        
+        /* 日志区 */
         .logs {
-            background: #16213e;
-            border-radius: 8px;
-            padding: 15px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 16px;
+            padding: 20px;
             overflow-y: auto;
             font-family: 'Consolas', monospace;
             font-size: 13px;
+            border: 1px solid rgba(255,255,255,0.05);
         }
-        .log-item { margin-bottom: 5px; padding: 3px 0; border-bottom: 1px solid #0f3460; }
-        .log-time { color: #666; margin-right: 10px; }
-        .log-dev { color: #e94560; margin-right: 8px; }
+        .log-item { 
+            margin-bottom: 8px; 
+            padding: 6px 10px; 
+            border-radius: 6px;
+            background: rgba(255,255,255,0.02);
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .log-time { color: #666; margin-right: 12px; }
+        .log-dev { 
+            color: #ff6b6b; 
+            margin-right: 8px; 
+            padding: 2px 8px;
+            background: rgba(255,107,107,0.15);
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        .log-msg { color: #ccc; }
         
+        /* 命令区 */
         .command {
             grid-column: 1 / -1;
-            background: #16213e;
-            border-radius: 8px;
-            padding: 15px;
+            background: rgba(255,255,255,0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 16px 20px;
             display: flex;
-            gap: 10px;
+            gap: 12px;
+            align-items: center;
+            border: 1px solid rgba(255,255,255,0.08);
         }
         .command input {
             flex: 1;
-            background: #0f3460;
-            border: 1px solid #533483;
+            background: rgba(0,0,0,0.3);
+            border: 2px solid rgba(255,255,255,0.1);
             color: #fff;
-            padding: 10px 15px;
-            border-radius: 5px;
-            font-size: 14px;
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 15px;
+            transition: all 0.3s;
         }
-        .command input:focus { outline: none; border-color: #e94560; }
+        .command input:focus { 
+            outline: none; 
+            border-color: #ff6b6b;
+            box-shadow: 0 0 20px rgba(255,107,107,0.2);
+        }
         .btn {
-            background: #e94560;
-            color: #fff;
+            padding: 14px 28px;
             border: none;
-            padding: 10px 25px;
-            border-radius: 5px;
+            border-radius: 12px;
             cursor: pointer;
             font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
         }
-        .btn:hover { background: #d63447; }
-        .btn:disabled { background: #533483; cursor: not-allowed; }
-        
-        .tab-btn {
-            background: #0f3460;
-            border: none;
-            color: #aaa;
-            padding: 8px 15px;
-            margin: 3px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .tab-btn.active { background: #e94560; color: #fff; }
-        
-        textarea {
-            width: 100%;
-            height: 120px;
-            background: #0f3460;
-            border: 1px solid #533483;
+        .btn-primary {
+            background: linear-gradient(135deg, #ff6b6b, #ff8e53);
             color: #fff;
-            padding: 10px;
-            border-radius: 5px;
-            font-family: monospace;
-            resize: vertical;
         }
-        .data-section { margin-bottom: 20px; }
-        .data-section h4 { margin: 10px 0; color: #4ecca3; }
-        .save-btn {
-            background: #4ecca3;
-            color: #1a1a2e;
-            margin-top: 10px;
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255,107,107,0.4);
+        }
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #aaa;
+        }
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.15);
         }
         
-        .device-panel {
-            background: #0f3460;
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 5px;
-            cursor: pointer;
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-thumb { 
+            background: rgba(255,255,255,0.2); 
+            border-radius: 3px;
         }
-        .device-panel:hover { background: #533483; }
-        .device-panel.active { border: 2px solid #e94560; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
     </style>
 </head>
 <body>
     <div id="app">
         <div class="header">
-            <h1>MYT RPA 控制台</h1>
+            <h1>🚀 MYT RPA 控制台</h1>
             <div class="status">
-                <span v-if="wsConnected">🟢 WebSocket已连接</span>
-                <span v-else>🔴 WebSocket未连接</span>
+                <div class="status-dot" :class="{ connected: wsConnected }"></div>
+                <span v-if="wsConnected">已连接</span>
+                <span v-else>未连接</span>
             </div>
         </div>
         
         <div class="sidebar">
-            <h3>📱 设备列表</h3>
-            <div class="device-panel" 
-                 v-for="i in 10" 
-                 :key="i"
-                 :class="{ active: selectedDevice === i }"
-                 @click="selectDevice(i)">
-                设备 #{{ i }}
+            <div class="section-title">📱 选择设备</div>
+            <div class="device-grid">
+                <div class="device-item" v-for="i in 10" :key="i">
+                    <input type="checkbox" :id="'dev'+i" :value="i" v-model="selectedDevices">
+                    <label class="device-label" :for="'dev'+i">设备 {{ i }}</label>
+                </div>
             </div>
             
-            <h3 style="margin-top: 20px;">📁 数据管理</h3>
-            <button class="tab-btn" :class="{ active: activeTab === 'accounts' }" @click="activeTab = 'accounts'">账号</button>
-            <button class="tab-btn" :class="{ active: activeTab === 'location' }" @click="activeTab = 'location'">位置</button>
-            <button class="tab-btn" :class="{ active: activeTab === 'website' }" @click="activeTab = 'website'">网站</button>
+            <div class="section-title">📁 数据配置</div>
+            <div class="tabs">
+                <button class="tab-btn" :class="{ active: activeTab === 'accounts' }" @click="activeTab = 'accounts'">账号</button>
+                <button class="tab-btn" :class="{ active: activeTab === 'location' }" @click="activeTab = 'location'">位置</button>
+                <button class="tab-btn" :class="{ active: activeTab === 'website' }" @click="activeTab = 'website'">网站</button>
+            </div>
             
             <div v-if="activeTab === 'accounts'" class="data-section">
-                <h4>账号列表</h4>
-                <textarea v-model="accountsData" placeholder="格式: 用户名----密码----2FA密钥"></textarea>
-                <button class="btn save-btn" @click="saveData('accounts')">保存账号</button>
+                <h4>账号列表（格式: 用户名----密码----2FA）</h4>
+                <textarea v-model="accountsData" placeholder="例: user@email.com----password----ABC123"></textarea>
+                <button class="save-btn" @click="saveData('accounts')">💾 保存账号</button>
             </div>
             <div v-if="activeTab === 'location'" class="data-section">
-                <h4>位置列表</h4>
-                <textarea v-model="locationData" placeholder="每行一个位置"></textarea>
-                <button class="btn save-btn" @click="saveData('location')">保存位置</button>
+                <h4>位置列表（每行一个）</h4>
+                <textarea v-model="locationData" placeholder="例: 東京&#10;大阪&#10;名古屋"></textarea>
+                <button class="save-btn" @click="saveData('location')">💾 保存位置</button>
             </div>
             <div v-if="activeTab === 'website'" class="data-section">
-                <h4>网站列表</h4>
-                <textarea v-model="websiteData" placeholder="每行一个网站"></textarea>
-                <button class="btn save-btn" @click="saveData('website')">保存网站</button>
+                <h4>网站列表（每行一个）</h4>
+                <textarea v-model="websiteData" placeholder="例: https://example1.com&#10;https://example2.com"></textarea>
+                <button class="save-btn" @click="saveData('website')">💾 保存网站</button>
             </div>
         </div>
         
         <div class="logs" ref="logContainer">
             <div class="log-item" v-for="(log, index) in logs" :key="index">
                 <span class="log-time">{{ log.time }}</span>
-                <span class="log-dev" v-if="log.dev">[Dev {{ log.dev }}]</span>
-                <span>{{ log.msg }}</span>
+                <span class="log-dev" v-if="log.dev">D{{ log.dev }}</span>
+                <span class="log-msg">{{ log.msg }}</span>
+            </div>
+            <div v-if="logs.length === 0" style="text-align: center; color: #666; padding: 40px;">
+                📭 暂无日志，等待任务执行...
             </div>
         </div>
         
         <div class="command">
             <input v-model="command" 
-                   placeholder="输入指令，如: 养号 3 volc, 全套 1-5 volc, 停止 3" 
+                   placeholder="输入指令: 养号、全套、重置、关注、私信..." 
                    @keyup.enter="executeCommand">
-            <button class="btn" @click="executeCommand" :disabled="!command.trim()">执行</button>
-            <button class="btn" @click="clearLogs" style="background: #533483;">清空日志</button>
+            <button class="btn btn-primary" @click="executeCommand" :disabled="!command.trim()">▶ 执行</button>
+            <button class="btn btn-secondary" @click="clearLogs">🗑️ 清空</button>
         </div>
     </div>
 
@@ -192,7 +365,7 @@
                 const wsConnected = ref(false);
                 const logs = ref([]);
                 const command = ref('');
-                const selectedDevice = ref(1);
+                const selectedDevices = ref([]);
                 const activeTab = ref('accounts');
                 const accountsData = ref('');
                 const locationData = ref('');
@@ -204,7 +377,6 @@
                     const now = new Date();
                     const time = now.toLocaleTimeString('zh-CN');
                     
-                    // 解析日志格式 [Dev 3] 消息
                     const match = msg.match(/\[Dev (\d+)\]\s*(.*)/);
                     if (match) {
                         logs.value.push({ time, dev: match[1], msg: match[2] });
@@ -212,14 +384,12 @@
                         logs.value.push({ time, dev: null, msg });
                     }
                     
-                    // 自动滚动到底部
                     nextTick(() => {
                         if (logContainer.value) {
                             logContainer.value.scrollTop = logContainer.value.scrollHeight;
                         }
                     });
                     
-                    // 限制日志数量
                     if (logs.value.length > 500) {
                         logs.value = logs.value.slice(-500);
                     }
@@ -232,7 +402,7 @@
                     
                     ws.onopen = () => {
                         wsConnected.value = true;
-                        addLog('WebSocket已连接');
+                        addLog('✅ 系统已连接');
                     };
                     
                     ws.onmessage = (event) => {
@@ -241,7 +411,7 @@
                     
                     ws.onclose = () => {
                         wsConnected.value = false;
-                        addLog('WebSocket断开，3秒后重连...');
+                        addLog('⚠️ 连接断开，3秒后重连...');
                         setTimeout(connectWs, 3000);
                     };
                     
@@ -250,30 +420,33 @@
                     };
                 };
 
-                const selectDevice = (i) => {
-                    selectedDevice.value = i;
-                };
-
                 const executeCommand = async () => {
                     if (!command.value.trim()) return;
+                    if (selectedDevices.value.length === 0) {
+                        addLog('⚠️ 请先选择设备');
+                        return;
+                    }
                     
                     const cmd = command.value.trim();
-                    addLog(`> ${cmd}`);
+                    const devices = selectedDevices.value.join(',');
+                    addLog(`📤 执行: ${cmd} (设备${devices})`);
                     command.value = '';
                     
                     try {
-                        const response = await fetch('/api/tasks/execute', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
-                                command: cmd,
-                                device: selectedDevice.value 
-                            })
-                        });
-                        const result = await response.json();
-                        addLog(JSON.stringify(result));
+                        for (const device of selectedDevices.value) {
+                            const response = await fetch('/api/tasks/execute', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                    command: `${cmd} ${device}`,
+                                    device: device 
+                                })
+                            });
+                            const result = await response.json();
+                            addLog(`📬 设备${device}: ${JSON.stringify(result)}`);
+                        }
                     } catch (e) {
-                        addLog(`执行失败: ${e.message}`);
+                        addLog(`❌ 执行失败: ${e.message}`);
                     }
                 };
 
@@ -305,9 +478,9 @@
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ content })
                         });
-                        addLog(`${type} 保存成功`);
+                        addLog(`💾 ${type} 保存成功`);
                     } catch (e) {
-                        addLog(`保存失败: ${e.message}`);
+                        addLog(`❌ 保存失败: ${e.message}`);
                     }
                 };
 
@@ -322,13 +495,12 @@
                     wsConnected,
                     logs,
                     command,
-                    selectedDevice,
+                    selectedDevices,
                     activeTab,
                     accountsData,
                     locationData,
                     websiteData,
                     logContainer,
-                    selectDevice,
                     executeCommand,
                     clearLogs,
                     saveData
