@@ -14,42 +14,42 @@ class CommandRequest(BaseModel):
 
 def parse_command(command: str):
     """解析命令"""
-    command = command.strip().lower()
+    original_command = command.strip()
+    command = original_command.lower()
     
     # 解析设备号
     devices = []
     ai_type = "volc"
     
-    parts = command.split()
+    parts = original_command.split()
     if not parts:
         return None, None, None
     
-    # 提取设备号
+    # 提取设备号 - 使用原始命令
     import re
-    device_match = re.search(r'(\d+(?:-\d+)?)', parts[-1] if len(parts) > 1 else parts[0])
-    if device_match:
-        device_str = device_match.group(1)
-        if '-' in device_str:
-            start, end = map(int, device_str.split('-'))
-            devices = list(range(start, end + 1))
-        else:
-            devices = [int(device_str)]
+    # 查找命令中的所有数字，选择最后一个作为设备号
+    all_numbers = re.findall(r'\d+', original_command)
+    device_numbers = [n for n in all_numbers if int(n) <= 10]
+    if device_numbers:
+        last_num = int(device_numbers[-1])
+        if last_num >= 1 and last_num <= 10:
+            devices = [last_num]
     
-    # 提取 AI 类型
-    if 'part' in command or '兼职' in command:
+    # 提取 AI 类型 - 使用原始命令
+    if 'part' in original_command.lower() or '兼职' in original_command:
         ai_type = "part_time"
-    elif 'volc' in command or '交友' in command:
+    elif 'volc' in original_command.lower() or '交友' in original_command:
         ai_type = "volc"
     
-    # 解析任务类型
+    # 解析任务类型 - 使用原始命令
     task_type = None
-    if '全套' in command or 'full' in command:
+    if '全套' in original_command or 'full' in original_command.lower():
         task_type = 'full_flow'
-    elif '养号' in command or 'nurture' in command:
+    elif '养号' in original_command or 'nurture' in original_command.lower():
         task_type = 'nurture_flow'
-    elif '重置' in command or 'reset' in command:
+    elif '重置' in original_command or 'reset' in original_command.lower():
         task_type = 'reset_login'
-    elif '登录' in command or 'login' in command:
+    elif '登录' in original_command or 'login' in original_command.lower():
         task_type = 'login'
     
     return task_type, devices, ai_type
