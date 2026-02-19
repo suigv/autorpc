@@ -2,7 +2,8 @@
 import logging
 import sys
 import os
-import atexit
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 class GuiLogHandler(logging.Handler):
     """自定义 Handler，将日志发送到 GUI 回调"""
@@ -21,6 +22,7 @@ class Logger:
     _instance = None
     _gui_callback = None
     _initialized = False
+    _ws_broadcast = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -48,6 +50,10 @@ class Logger:
         
         Logger._initialized = True
 
+    def set_ws_broadcast(self, broadcast_func):
+        """设置WebSocket广播函数"""
+        self._ws_broadcast = broadcast_func
+
     def set_gui_callback(self, callback):
         """设置 GUI 日志回调函数"""
         self._gui_callback = callback
@@ -66,6 +72,14 @@ class Logger:
         for handler in self.logger.handlers:
             handler.flush()
 
+    async def broadcast_ws(self, message: str):
+        """广播到WebSocket"""
+        if self._ws_broadcast:
+            try:
+                await self._ws_broadcast(message)
+            except Exception:
+                pass
+
     def log(self, device_index, message, level="info"):
         full_msg = f"[Dev {device_index}] {message}"
         if level == "info":
@@ -76,6 +90,14 @@ class Logger:
             self.logger.warning(full_msg)
         # 立即刷新输出
         self.flush()
+        
+        # 尝试WebSocket广播
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.ensure_future(self.broadcast_ws(full_msg))
+        except:
+            pass
 
 # 全局单例
 log_manager = Logger()

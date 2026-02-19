@@ -51,9 +51,22 @@ async def web():
 @app.websocket("/ws/logs")
 async def websocket_logs(websocket: WebSocket):
     """WebSocket日志实时推送"""
+    from common.logger import log_manager as logger
+    from app.core.log_manager import log_manager as ws_manager
+    
     await websocket.accept()
-    log_manager.disconnect(websocket)  # 移除之前的连接
-    log_manager._clients.append(websocket)
+    ws_manager.disconnect(websocket)
+    ws_manager._clients.append(websocket)
+    
+    # 设置广播函数到logger
+    async def broadcast(msg):
+        try:
+            await websocket.send_text(msg)
+        except:
+            pass
+    
+    logger.set_ws_broadcast(broadcast)
+    
     try:
         while True:
             data = await websocket.receive_text()
@@ -65,5 +78,4 @@ async def websocket_logs(websocket: WebSocket):
             except:
                 pass
     except WebSocketDisconnect:
-        if websocket in log_manager._clients:
-            log_manager._clients.remove(websocket)
+        ws_manager.disconnect(websocket)
