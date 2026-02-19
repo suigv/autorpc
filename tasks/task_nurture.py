@@ -135,6 +135,11 @@ def run_nurture_task(device_info, _unused, stop_event):
         for kw in target_keywords:
             if stop_event.is_set(): break
             
+            # 检测App是否正常运行
+            if not bot.ensure_app_running():
+                bot.log("❌ App启动失败，跳过当前关键词")
+                continue
+            
             final_kw = kw.replace("{blogger}", blogger)
             is_live = random.random() < 0.7
             mode_str = "最新(Live)" if is_live else "热门(Top)"

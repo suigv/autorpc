@@ -72,6 +72,11 @@ def run_follow_followers_task(device_info, _unused, stop_event):
         while followed_count < target_follow_count and swipe_cnt < max_swipes:
             if stop_event.is_set(): break
             
+            # 检测App是否正常运行
+            if not bot.ensure_app_running():
+                bot.log("❌ App启动失败，结束任务")
+                break
+            
             # 查找所有 "关注" 按钮
             # 优先点击上方 -> 按 Y 坐标排序
             valid_buttons = []

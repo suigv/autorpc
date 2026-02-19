@@ -298,6 +298,48 @@ class BotAgent:
                 return True
         return False
 
+    def ensure_app_running(self):
+        """确保X App正在运行"""
+        import time
+        pkg = self.cfg.PACKAGE_NAME
+        
+        # 方法1：检查进程是否存在
+        result = self.shell_cmd(f"ps -A | grep {pkg}")
+        app_running = pkg in result
+        
+        if not app_running:
+            # App确实没有运行（崩溃/被杀死）
+            self.log("⚠️ 检测到App未运行，尝试启动...")
+            self.launch_app()
+            time.sleep(3)
+            
+            # 检查是否成功启动
+            if self.is_on_home_page():
+                self.log("✅ App已启动")
+                return True
+            else:
+                self.log("❌ App启动失败，尝试强制重启")
+                self.force_stop_app()
+                time.sleep(2)
+                self.launch_app()
+                time.sleep(3)
+                return self.is_on_home_page()
+        else:
+            # App正在运行，检查是否在主页
+            if self.is_on_home_page():
+                return True
+            else:
+                # App在后台但未响应，尝试恢复
+                self.log("⚠️ App在后台，尝试恢复...")
+                self.launch_app()
+                time.sleep(3)
+                return self.is_on_home_page()
+
+    def force_stop_app(self):
+        """强制停止App"""
+        pkg = self.cfg.PACKAGE_NAME
+        self.shell_cmd(f"am force-stop {pkg}")
+        
     def grant_all_permissions(self):
         pkg = self.cfg.PACKAGE_NAME
         self.log("🛡️ 正在预授权应用权限...")
