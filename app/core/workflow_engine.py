@@ -122,7 +122,11 @@ class WorkflowEngine:
             self.log(device_index, "进入循环任务阶段")
 
             while not stop_event.is_set() and not check_stop_condition(self.stop_hour):
-                self.log(device_index, "养号互动")
+                self.log(device_index, "关注截流")
+                run_follow_followers_task(device_info, None, stop_event)
+                time.sleep(2)
+
+                self.log(device_index, "智能养号")
                 run_nurture_task(device_info, None, stop_event)
                 time.sleep(2)
 
@@ -190,6 +194,7 @@ class WorkflowEngine:
 
             from tasks.task_nurture import run_nurture_task
             from tasks.task_reply_dm import run_reply_dm_task
+            from tasks.task_follow_followers import run_follow_followers_task
             from tasks.task_home_interaction import run_home_interaction_task
             from tasks.task_quote_intercept import run_quote_intercept_task
             from tasks.task_scrape_blogger import ensure_blogger_ready
@@ -201,7 +206,11 @@ class WorkflowEngine:
             self.log(device_index, "进入养号循环")
 
             while not stop_event.is_set() and not check_stop_condition(self.stop_hour):
-                self.log(device_index, "养号互动")
+                self.log(device_index, "关注截流")
+                run_follow_followers_task(device_info, None, stop_event)
+                time.sleep(2)
+
+                self.log(device_index, "智能养号")
                 run_nurture_task(device_info, None, stop_event)
                 time.sleep(2)
 
