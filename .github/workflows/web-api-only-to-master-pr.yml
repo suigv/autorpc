@@ -1,0 +1,25 @@
+name: Sync web-api-only to master
+
+on:
+  push:
+    branches:
+      - web-api-only
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  open-sync-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open or update PR
+        uses: repo-sync/pull-request@v2
+        with:
+          source_branch: web-api-only
+          destination_branch: master
+          pr_title: "chore: sync web-api-only into master"
+          pr_body: |
+            Auto-generated PR to sync the latest `web-api-only` changes into `master`.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
