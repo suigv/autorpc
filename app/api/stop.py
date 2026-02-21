@@ -3,6 +3,7 @@ from fastapi import APIRouter
 import threading
 
 from app.core.task_log_store import append_task_log
+from app.core.config_loader import get_total_devices
 
 router = APIRouter()
 
@@ -33,7 +34,8 @@ def stop_task():
     engine = WorkflowEngine()
     
     # 触发所有设备的停止事件
-    for device_index in range(1, 11):
+    total_devices = get_total_devices()
+    for device_index in range(1, total_devices + 1):
         engine.stop_device(device_index)
         append_task_log("收到全局停止请求", device_index=device_index, level="warning", source="stop")
         t = threading.Thread(target=_force_stop_app_in_background, args=(device_index,), daemon=True)

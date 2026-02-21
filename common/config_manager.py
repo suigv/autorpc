@@ -1,10 +1,13 @@
 # common/config_manager.py
 import os
+
+from app.core.config_loader import ConfigLoader, get_default_ai
 from common.ToolsKit import ToolsKit
+
 
 class ConfigManager:
     _instance = None
-    
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(ConfigManager, cls).__new__(cls)
@@ -17,13 +20,11 @@ class ConfigManager:
         self.log_dir = os.path.join(self.root_path, "log")
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
-            
-        # 默认运行时配置
+
+        # 兼容旧代码中未落盘的运行时键
         self.runtime_config = {
-            "ip": "192.168.1.215",
             "delay": 5,
-            "ai_type": "volc", # volc / part_time
-            "schedule_enabled": False
+            "schedule_enabled": False,
         }
 
     def get_file_path(self, filename, ai_type=None):
@@ -40,11 +41,17 @@ class ConfigManager:
         return os.path.join(self.root_path, filename)
 
     def update_runtime(self, key, value):
+        if key in ("ip", "host_ip"):
+            ConfigLoader.update(host_ip=value)
+            return
+        if key in ("ai_type", "default_ai"):
+            ConfigLoader.update(default_ai=value)
+            return
         self.runtime_config[key] = value
 
     @property
     def ai_type(self):
-        return self.runtime_config.get("ai_type", "volc")
+        return get_default_ai()
 
 # 全局单例
 cfg = ConfigManager()

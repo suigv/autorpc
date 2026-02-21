@@ -2,11 +2,11 @@
 任务 API
 """
 from fastapi import APIRouter, HTTPException
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from app.models.task import TaskRequest, TaskResponse, TaskDetailResponse, TaskType, TaskStatus
 from app.core.workflow_engine import WorkflowEngine
-from app.core.device_manager import parse_device_range, parse_ai_type
+from app.core.device_manager import parse_ai_type
 from app.core.task_manager import TaskManager
 from app.core.task_log_store import get_task_logs
 from common.runtime_state import reset_runtime_state
@@ -18,70 +18,31 @@ task_manager = TaskManager()
 
 @router.post("/full-flow", response_model=TaskResponse)
 def create_full_flow_task(request: TaskRequest):
-    devices = request.devices
-    ai_type = parse_ai_type(request.ai_type)
-    
-    task = task_manager.create_task(TaskType.FULL_FLOW, devices, ai_type)
-    
-    def handler(devices, ai_type):
-        return workflow_engine.run_full_flow(devices, ai_type)
-    
-    task_manager.register_handler(TaskType.FULL_FLOW, handler)
-    task_manager.run_task_async(task.task_id)
-    
-    return TaskResponse(
-        task_id=task.task_id,
-        task_type=task.task_type,
-        devices=task.devices,
-        ai_type=task.ai_type,
-        status=task.status,
-        created_at=task.created_at
+    return _create_and_start_task(
+        task_type=TaskType.FULL_FLOW,
+        devices=request.devices,
+        ai_type=parse_ai_type(request.ai_type),
+        runner=workflow_engine.run_full_flow,
     )
 
 
 @router.post("/nurture-flow", response_model=TaskResponse)
 def create_nurture_flow_task(request: TaskRequest):
-    devices = request.devices
-    ai_type = parse_ai_type(request.ai_type)
-    
-    task = task_manager.create_task(TaskType.NURTURE_FLOW, devices, ai_type)
-    
-    def handler(devices, ai_type):
-        return workflow_engine.run_nurture_flow(devices, ai_type)
-    
-    task_manager.register_handler(TaskType.NURTURE_FLOW, handler)
-    task_manager.run_task_async(task.task_id)
-    
-    return TaskResponse(
-        task_id=task.task_id,
-        task_type=task.task_type,
-        devices=task.devices,
-        ai_type=task.ai_type,
-        status=task.status,
-        created_at=task.created_at
+    return _create_and_start_task(
+        task_type=TaskType.NURTURE_FLOW,
+        devices=request.devices,
+        ai_type=parse_ai_type(request.ai_type),
+        runner=workflow_engine.run_nurture_flow,
     )
 
 
 @router.post("/reset-login", response_model=TaskResponse)
 def create_reset_login_task(request: TaskRequest):
-    devices = request.devices
-    ai_type = parse_ai_type(request.ai_type)
-    
-    task = task_manager.create_task(TaskType.RESET_LOGIN, devices, ai_type)
-    
-    def handler(devices, ai_type):
-        return workflow_engine.run_reset_login(devices, ai_type)
-    
-    task_manager.register_handler(TaskType.RESET_LOGIN, handler)
-    task_manager.run_task_async(task.task_id)
-    
-    return TaskResponse(
-        task_id=task.task_id,
-        task_type=task.task_type,
-        devices=task.devices,
-        ai_type=task.ai_type,
-        status=task.status,
-        created_at=task.created_at
+    return _create_and_start_task(
+        task_type=TaskType.RESET_LOGIN,
+        devices=request.devices,
+        ai_type=parse_ai_type(request.ai_type),
+        runner=workflow_engine.run_reset_login,
     )
 
 
@@ -153,3 +114,41 @@ def cancel_task(task_id: str):
     task_manager.update_task_status(task_id, TaskStatus.CANCELLED)
     
     return {"task_id": task_id, "status": "cancelled"}
+
+
+def _create_and_start_task(
+    task_type: TaskType,
+    devices: list,
+    ai_type: str,
+    runner: Callable[[list, str], dict],
+) -> TaskResponse:
+    busy_devices = [dev for dev in devices if workflow_engine.is_device_busy(dev)]
+    if busy_devices:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "device_busy",
+                "message": "One or more devices are already running tasks",
+                "busy_devices": busy_devices,
+            },
+        )
+
+    task = task_manager.create_task(task_type, devices, ai_type, handler=runner)
+    if not task_manager.run_task_async(task.task_id):
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "queue_full",
+                "message": "Task queue is full",
+                "task_id": task.task_id,
+            },
+        )
+
+    return TaskResponse(
+        task_id=task.task_id,
+        task_type=task.task_type,
+        devices=task.devices,
+        ai_type=task.ai_type,
+        status=task.status,
+        created_at=task.created_at,
+    )
