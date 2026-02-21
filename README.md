@@ -47,6 +47,16 @@ MYT_ROOT_PATH=$(pwd) PYTHONPATH=$(pwd) python3 -m uvicorn app.main:app --host 0.
 
 Web 地址：`http://localhost:8000/web`
 
+## Debian 服务器一键部署（Web/API 专用）
+
+服务器专用分支：`web-api-only`
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/suigv/autorpc/web-api-only/install_debian_webapi.sh)"
+```
+
+部署细节与可选参数见：`DEPLOY_WEB_API.md`
+
 ## 常用 API
 
 ```bash
