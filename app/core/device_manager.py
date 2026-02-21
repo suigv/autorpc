@@ -49,7 +49,6 @@ class DeviceManager:
     def __init__(self):
         if not hasattr(self, "_initialized"):
             self._devices: Dict[int, Device] = {}
-            self._host_ip = get_host_ip()
             self._initialized = True
 
     def get_device(self, index: int, ai_type: AIType = AIType.VOLC) -> Device:
@@ -69,7 +68,7 @@ class DeviceManager:
         rpa_port, api_port = calculate_ports(index)
         return {
             "index": index,
-            "ip": self._host_ip,
+            "ip": get_host_ip(),
             "rpa_port": rpa_port,
             "api_port": api_port,
             "ai_type": device.ai_type.value,
@@ -78,7 +77,13 @@ class DeviceManager:
             "message": device.message
         }
 
-    def set_device_status(self, index: int, status: DeviceStatus, task: str = None, message: str = None):
+    def set_device_status(
+        self,
+        index: int,
+        status: DeviceStatus,
+        task: Optional[str] = None,
+        message: Optional[str] = None,
+    ):
         device = self.get_device(index)
         device.status = status
         if task:
@@ -127,7 +132,7 @@ def parse_ai_type(ai_type: str) -> str:
     return "volc"
 
 
-def check_stop_condition(stop_hour: int = None) -> bool:
+def check_stop_condition(stop_hour: Optional[int] = None) -> bool:
     if stop_hour is None:
         stop_hour = get_stop_hour()
     from datetime import datetime

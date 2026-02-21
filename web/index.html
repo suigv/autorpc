@@ -442,7 +442,7 @@
         <div class="sidebar">
             <div class="section-title">📱 选择设备</div>
             <div class="device-grid">
-                <div class="device-item" v-for="i in 10" :key="i">
+                <div class="device-item" v-for="i in deviceOptions" :key="i">
                     <input type="checkbox" :id="'dev'+i" :value="i" v-model="selectedDevices">
                     <label class="device-label" :for="'dev'+i">设备 {{ i }}</label>
                 </div>
@@ -496,7 +496,7 @@
             <div class="log-toolbar">
                 <select v-model="logDeviceFilter">
                     <option value="all">全部设备</option>
-                    <option v-for="i in 10" :key="`filter-dev-${i}`" :value="String(i)">设备 {{ i }}</option>
+                    <option v-for="i in deviceOptions" :key="`filter-dev-${i}`" :value="String(i)">设备 {{ i }}</option>
                 </select>
                 <select v-model="logLevelFilter">
                     <option value="all">全部级别</option>
@@ -554,6 +554,7 @@
                    @keyup.enter="executeCommand"
                    >
             <button class="btn btn-primary" @click="executeCommand" :disabled="!command.trim()">▶ 执行</button>
+            <button class="btn btn-secondary" @click="retryFailed" :disabled="failedDevices.length === 0">↻ 重试失败</button>
             <button class="btn btn-danger" @click="stopTask" :disabled="!hasStopTargets">⏹ 停止</button>
             <button class="btn btn-warning" @click="initializeState">♻ 初始化</button>
             <button class="btn btn-secondary" @click="clearLogs">🗑️ 清空</button>
@@ -576,10 +577,13 @@
                 const logContainer = ref(null);
                 const isRunning = ref(false);
                 const selectedApiType = ref('volc');
+                const totalDevices = ref(10);
                 const logDeviceFilter = ref('all');
                 const logLevelFilter = ref('all');
                 const onlyCurrentSelection = ref(true);
                 const groupByTask = ref(true);
+                const failedDevices = ref([]);
+                const lastCommand = ref('');
 
                 let ws = null;
                 let pollTimer = null;
@@ -637,6 +641,11 @@
                     return selectedDevices.value.length > 0 || Object.keys(activeTasks).length > 0 || isRunning.value;
                 });
 
+                const deviceOptions = computed(() => {
+                    const count = Number(totalDevices.value) || 10;
+                    return Array.from({ length: count }, (_, idx) => idx + 1);
+                });
+
                 const scrollLogsToBottom = () => {
                     nextTick(() => {
                         if (logContainer.value) {
@@ -672,14 +681,25 @@
                 };
 
                 const addWsLog = (msg) => {
-                    if (/^\[Dev\s+\d+\]/.test(msg)) {
-                        return;
-                    }
                     const match = msg.match(/\[Dev (\d+)\]\s*(.*)/);
                     if (match) {
-                        addLog(match[2], 'info', Number(match[1]));
-                    } else {
-                        addLog(msg, 'info');
+                        return;
+                    }
+                    addLog(msg, 'info');
+                };
+
+                const loadConfig = async () => {
+                    try {
+                        const response = await fetch('/api/config/');
+                        if (!response.ok) return;
+                        const data = await response.json();
+                        const configuredTotal = Number(data.total_devices);
+                        if (Number.isFinite(configuredTotal) && configuredTotal > 0) {
+                            totalDevices.value = configuredTotal;
+                            selectedDevices.value = selectedDevices.value.filter((dev) => dev <= configuredTotal);
+                        }
+                    } catch (e) {
+                        // ignore config load failure
                     }
                 };
 
@@ -701,6 +721,24 @@
                     });
                     trimLogs();
                     scrollLogsToBottom();
+                };
+
+                const formatApiError = (payload, statusCode) => {
+                    const detail = payload?.detail || {};
+                    const code = detail.code || payload?.code;
+                    if (code === 'queue_full') {
+                        return '任务队列已满，请稍后重试';
+                    }
+                    if (code === 'device_busy') {
+                        const busy = detail.busy_devices || [];
+                        return busy.length > 0
+                            ? `设备占用中: ${busy.join(', ')}`
+                            : '设备占用中，请稍后重试';
+                    }
+                    if (code === 'invalid_command') {
+                        return '命令无法解析，请调整后重试';
+                    }
+                    return detail.message || payload?.message || `HTTP ${statusCode}`;
                 };
 
                 const pollTaskLogs = async () => {
@@ -782,11 +820,13 @@
                     }
 
                     const cmd = command.value.trim();
+                    lastCommand.value = cmd;
                     const devices = selectedDevices.value.join(',');
                     const apiKeyword = selectedApiType.value === 'part_time' ? '兼职' : '交友';
                     addLog(`执行: ${cmd} [${apiKeyword}] (设备${devices})`, 'info');
                     command.value = '';
                     isRunning.value = true;
+                    failedDevices.value = [];
 
                     try {
                         let startedCount = 0;
@@ -804,7 +844,26 @@
                                     device: device
                                 })
                             });
-                            const result = await response.json();
+                            let result = {};
+                            try {
+                                result = await response.json();
+                            } catch (e) {
+                                result = {};
+                            }
+
+                            if (!response.ok) {
+                                const detail = result.detail || {};
+                                const message = formatApiError(result, response.status);
+                                failedDevices.value.push(device);
+                                addLog(
+                                    `设备${device} 启动失败: ${message}`,
+                                    'error',
+                                    device,
+                                    detail.task_id || null,
+                                    JSON.stringify(result, null, 2)
+                                );
+                                continue;
+                            }
 
                             if (result.status === 'ok') {
                                 const taskId = result.task_id || null;
@@ -823,6 +882,7 @@
                                     JSON.stringify(result, null, 2)
                                 );
                             } else {
+                                failedDevices.value.push(device);
                                 addLog(
                                     `设备${device} 启动失败: ${result.message || '未知错误'}`,
                                     'error',
@@ -842,6 +902,20 @@
                         addLog(`执行失败: ${e.message}`, 'error');
                         isRunning.value = Object.keys(activeTasks).length > 0;
                     }
+                };
+
+                const retryFailed = async () => {
+                    if (failedDevices.value.length === 0) return;
+                    if (!lastCommand.value) {
+                        addLog('没有可重试的历史命令', 'warning');
+                        return;
+                    }
+
+                    const retryTargets = [...failedDevices.value];
+                    selectedDevices.value = retryTargets;
+                    command.value = lastCommand.value;
+                    addLog(`重试失败设备: ${retryTargets.join(', ')}`, 'warning');
+                    await executeCommand();
                 };
 
                 const stopTask = async () => {
@@ -951,6 +1025,7 @@
 
                 onMounted(() => {
                     connectWs();
+                    loadConfig();
                     loadData('accounts');
                     loadData('location');
                     loadData('website');
@@ -975,6 +1050,8 @@
                     groupedLogs,
                     command,
                     selectedDevices,
+                    totalDevices,
+                    deviceOptions,
                     selectedApiType,
                     logDeviceFilter,
                     logLevelFilter,
@@ -992,7 +1069,9 @@
                     stopTask,
                     initializeState,
                     clearLogs,
-                    saveData
+                    saveData,
+                    failedDevices,
+                    retryFailed
                 };
             }
         }).mount('#app');
