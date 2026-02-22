@@ -39,6 +39,7 @@ jobs:
             run_api.sh
             deploy_debian.sh
             install_debian_webapi.sh
+            update_server.sh
             DEPLOY_WEB_API.md
             README.md
             AGENTS.md
