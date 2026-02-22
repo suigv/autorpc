@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-import psutil
 import platform
 
 
@@ -75,6 +74,7 @@ class ToolsKit(object):
     def check_process(self, pid):
         """检查进程是否存在"""
         try:
+            import psutil
             pid = int(pid)
             if psutil.pid_exists(pid):
                 return True
