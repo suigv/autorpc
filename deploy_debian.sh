@@ -100,19 +100,37 @@ ${SUDO} systemctl daemon-reload
 ${SUDO} systemctl enable --now "${APP_NAME}"
 
 echo "[7/7] Health check..."
-sleep 1
 HEALTH_HOST="127.0.0.1"
 if [[ "${APP_HOST}" != "0.0.0.0" ]]; then
   HEALTH_HOST="${APP_HOST}"
 fi
 
-if curl -fsS "http://${HEALTH_HOST}:${APP_PORT}/health" >/dev/null; then
+HEALTH_OK=0
+for i in $(seq 1 30); do
+  if curl -fsS "http://${HEALTH_HOST}:${APP_PORT}/health" >/dev/null 2>&1; then
+    HEALTH_OK=1
+    break
+  fi
+
+  if ! ${SUDO} systemctl is-active --quiet "${APP_NAME}"; then
+    break
+  fi
+
+  sleep 1
+done
+
+if [[ "${HEALTH_OK}" -eq 1 ]]; then
   echo "OK: service is running."
   echo "- Service: ${APP_NAME}"
   echo "- URL: http://<server-ip>:${APP_PORT}/web"
 else
-  echo "WARNING: health check failed. Check logs:" >&2
-  echo "  ${SUDO} journalctl -u ${APP_NAME} -n 200 --no-pager" >&2
+  echo "WARNING: health check failed. Service diagnostics:" >&2
+  echo "--- systemctl status ---" >&2
+  ${SUDO} systemctl status "${APP_NAME}" --no-pager -l >&2 || true
+  echo "--- journalctl (last 200 lines) ---" >&2
+  ${SUDO} journalctl -u "${APP_NAME}" -n 200 --no-pager >&2 || true
+  echo "--- listening ports ---" >&2
+  ss -ltnp >&2 || true
   exit 1
 fi
 
