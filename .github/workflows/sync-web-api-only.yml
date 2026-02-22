@@ -1,0 +1,82 @@
+name: Sync web-api-only
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync selected paths to web-api-only
+        env:
+          TARGET_BRANCH: web-api-only
+        run: |
+          set -euo pipefail
+
+          SYNC_PATHS=(
+            app
+            common
+            tasks
+            web
+            config
+            requirements.txt
+            run_api.sh
+            deploy_debian.sh
+            install_debian_webapi.sh
+            DEPLOY_WEB_API.md
+            README.md
+            AGENTS.md
+            API_USAGE.md
+            .opencode
+            .github/workflows/sync-web-api-only.yml
+          )
+
+          SNAPSHOT_DIR="/tmp/master-snapshot"
+          rm -rf "${SNAPSHOT_DIR}"
+          mkdir -p "${SNAPSHOT_DIR}"
+
+          for path in "${SYNC_PATHS[@]}"; do
+            if [[ -e "${path}" ]]; then
+              mkdir -p "${SNAPSHOT_DIR}/$(dirname "${path}")"
+              cp -a "${path}" "${SNAPSHOT_DIR}/${path}"
+            fi
+          done
+
+          git fetch origin "${TARGET_BRANCH}"
+          git switch -C "${TARGET_BRANCH}" "origin/${TARGET_BRANCH}"
+
+          for path in "${SYNC_PATHS[@]}"; do
+            rm -rf "${path}"
+          done
+
+          for path in "${SYNC_PATHS[@]}"; do
+            if [[ -e "${SNAPSHOT_DIR}/${path}" ]]; then
+              mkdir -p "$(dirname "${path}")"
+              cp -a "${SNAPSHOT_DIR}/${path}" "${path}"
+            fi
+          done
+
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to sync"
+            exit 0
+          fi
+
+          git commit -m "chore: sync master to web-api-only"
+          git push origin "HEAD:${TARGET_BRANCH}"
